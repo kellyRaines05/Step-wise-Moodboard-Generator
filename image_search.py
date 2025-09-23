@@ -3,13 +3,17 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
 import urllib.parse
 from io import BytesIO
 from PIL import Image
 
-def get_images(keywords: str) -> list:
+def get_images(keywords: str, time_wait: int = 10) -> list:
     images_results = []
-    driver = webdriver.Chrome()
+
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    driver = webdriver.Chrome(options=chrome_options)
 
     try:
         search_query = urllib.parse.quote(keywords)
@@ -17,7 +21,7 @@ def get_images(keywords: str) -> list:
         
         driver.get(cosmos_url)
 
-        wait = WebDriverWait(driver, 20)
+        wait = WebDriverWait(driver, timeout=time_wait)
         wait.until(EC.presence_of_all_elements_located((By.TAG_NAME, "img")))
         image_elements = driver.find_elements(By.TAG_NAME, "img")
         
@@ -25,7 +29,7 @@ def get_images(keywords: str) -> list:
             img_src = img.get_attribute('src')
             if img_src and img_src.startswith('http'):
                 try:
-                    response = requests.get(img_src, timeout=10)
+                    response = requests.get(img_src, timeout=time_wait)
                     image_data = response.content
                     image_stream = BytesIO(image_data)
                     image_object = Image.open(image_stream)
