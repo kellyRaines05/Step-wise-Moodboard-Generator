@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>MBGen</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" type="image/x-icon" href="icon.ico">
+    </head>
+
+    <body>
+        <header>
+            <div class="title">MBGen</div>
+            <div class="subtitle">AI Moodboard Generator</div>
+        </header>
+        <section class="generator-section">
+            <section class="prompt-box">
+                <input type="text" placeholder="Describe your moodboard idea..." required>
+                <button onclick="navigate_to_generation()">Generate</button>
+            </section>
+        </section>
+        <section class="past-moodboards-section">
+            <div class="section-title">Past Moodboards</div>
+            <div class="moodboard-grid" id="moodboardGrid">
+        </section>
+    </body>
+
+    <script>
+        async function get_past_moodboards() {
+            let moodboards_list;
+            try {
+                const response = await fetch('http://localhost:8000/api/past_moodboards');
+                if (!response.ok) throw new Error('Error fetching moodboards');
+                savedMoodboards.moodboards = await response.json();
+                moodboards_list = savedMoodboards.moodboards;
+            } catch (error) {
+                moodboards_list = []
+            }
+            return moodboards_list
+        }
+
+        function display_past_moodboards(moodboards_list) {
+            const grid = document.getElementById('moodboardGrid');
+            grid.innerHTML = '';
+
+            if (moodboards_list.length === 0) {
+                grid.innerHTML = '<div style="color:#64748b; font-style:italic;">No past moodboards found. Start by generating one!</div>';
+                return;
+            }
+
+            moodboards_list.forEach(moodboard => {
+                const tile = document.createElement('div');
+                tile.className = 'moodboard-tile';
+                tile.innerHTML = `
+                    <div class="moodboard-preview">${moodboard.preview_emoji || ''}</div>
+                    <div class="moodboard-info">
+                        <div class="moodboard-prompt">${moodboard.prompt || ''}</div>
+                        <div class="moodboard-date">${moodboard.date || ''}</div>
+                    </div>
+                `;
+                grid.appendChild(tile);
+            });
+        }
+
+        async function loadPastMoodboards() {
+            const moodboards = await get_past_moodboards();
+            display_past_moodboards(moodboards_list=moodboards);
+        }
+
+        window.onload = loadPastMoodboards;
+
+        async function navigate_to_generation() {
+            const promptInput = document.querySelector('.prompt-box input[type="text"]');
+            const prompt = promptInput.value.trim();
+            if (!prompt) return;
+            localStorage.setItem('moodboardPrompt', prompt);
+            window.location.href = 'new_moodboard.html';
+        }
+    </script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(180deg, #FDF6ED 35%, #FBEDDA 100%);
+            color: #222;
+            min-height: 100vh;
+        }
+        header {
+            text-align: center;
+            padding: 2rem 1rem 1rem 1rem;
+        }
+        .title {
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color:#DE6B48;
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            color:  #45B69C;
+            margin-bottom: 2rem;
+        }
+        .generator-section {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            margin-bottom: 2.5rem;
+        }
+        .prompt-box {
+            padding: 1rem 1.5rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            max-width: 600px;
+            width: 100%;
+        }
+        .prompt-box input[type="text"] {
+            flex: 1;
+            padding: 0.9rem 1.2rem;
+            font-size: 1.1rem;
+            border: 1.5px solid #F9E4C8;
+            border-radius: 0.7rem;
+        }
+        .prompt-box input[type="text"]:focus {
+            outline: none;
+            border: 1.5px solid #F5D1A3;
+        }
+        .prompt-box button {
+            background: linear-gradient(150deg, #3EA38B 35%, #328572 100%);
+            color: #fff;
+            border: none;
+            border-radius: 0.7rem;
+            padding: 0.9rem 1.8rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 2px 8px rgba(59,130,246,0.10);
+        }
+        .prompt-box button:hover {
+            background: linear-gradient(150deg, #328572 35%, #276859 100%);
+        }
+        .past-moodboards-section {
+            max-width: 1100px;
+            margin: 0 auto 2rem auto;
+            padding: 0 1rem;
+        }
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 1.2rem;
+            letter-spacing: 1px;
+        }
+        .moodboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+        }
+        .moodboard-tile {
+            background: #fff;
+            border-radius: 1.2rem;
+            box-shadow: 0 2px 16px rgba(100,116,139,0.08);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.15s, box-shadow 0.15s;
+            cursor: pointer;
+            position: relative;
+        }
+        .moodboard-tile:hover {
+            transform: translateY(-4px) scale(1.03);
+            box-shadow: 0 6px 32px rgba(59,130,246,0.13);
+        }
+        .moodboard-preview {
+            height: 140px;
+            background: linear-gradient(120deg, #f1f5f9 60%, #e0e7ef 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: #a5b4fc;
+            letter-spacing: 2px;
+            font-weight: 700;
+        }
+        .moodboard-info {
+            padding: 1rem 1.2rem 0.8rem 1.2rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+        .moodboard-prompt {
+            font-size: 1rem;
+            color: #475569;
+            font-weight: 500;
+            margin-bottom: 0.2rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .moodboard-date {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        @media (max-width: 600px) {
+            .prompt-box {
+                flex-direction: column;
+                gap: 0.7rem;
+                padding: 1.2rem 1rem;
+            }
+            .moodboard-preview {
+                height: 90px;
+                font-size: 1.3rem;
+            }
+        }
+    </style>
+</html>

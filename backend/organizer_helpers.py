@@ -1,77 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Moodboard (No-CLI) — Auto Title & Auto Palette (fixed strips: no overlap)
-"""
-
-import os, io, json, math, random
-from dataclasses import dataclass, asdict
-from typing import List, Tuple, Optional
-from pathlib import Path
-
+import math, random
+from typing import List, Tuple
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-
-class Config:
-    IMAGES_DIR = "./images"
-    OUT_DIR = "./outputs"
-
-    CANVAS_WIDTH = 1600
-    CANVAS_HEIGHT = 1000
-    MARGIN = 12
-
-    MAX_THUMB = 360
-    FILL_RATIO = 0.92
-    STEPS = 2500
-    COMPACT_STEPS = 10
-    SEED = 42
-
-    TITLE_TEXT = "Minimal Interior"
-    TITLE_MAX_FRACTION = 0.18
-    PALETTE_MAX_FRACTION = 0.16
-    STRIP_PADDING = 6
-    PALETTE_SWATCHES = 5
-    PALETTE_METHOD = "kmeans"
-
-    USE_CLIP = True
-    CLIP_MODEL = "ViT-B/32"
-    CLIP_DEVICE = "auto"
-    CLIP_WEIGHT = 1.0
-    COLOR_WEIGHT = 0.6
-
-    CENTER_BIAS_STRENGTH = 0.35
-    CENTER_BIAS_GAMMA = 1.2
-    CENTER_FORCE_K = 0.02
-    RADIAL_SCALE_MAX = 1.18
-    RADIAL_SCALE_MIN = 0.88
-    RADIAL_SCALE_ETA = 1.2
-
-    # Title sizing
-    TITLE_FONT_MAX = 150          # cap the auto-fit
-    TITLE_TEXT_SHRINK = 50        # shrink ONLY the text by this many pts (badge stays same)
-
-    ALLOW_DUPLICATE_OMP = False
-    OMP_NUM_THREADS = 1
-
-if Config.ALLOW_DUPLICATE_OMP:
-    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-os.environ.setdefault("OMP_NUM_THREADS", str(Config.OMP_NUM_THREADS))
-
-@dataclass
-class ImgMeta:
-    filename: str
-    w: int
-    h: int
-    scale: float
-    x: float = 0.0
-    y: float = 0.0
-    target_x: float = 0.0
-    target_y: float = 0.0
-    avg_colors: Tuple[Tuple[float, float, float], Tuple[float, float, float], Tuple[float, float, float], Tuple[float, float, float]] = (
-        (0,0,0),(0,0,0),(0,0,0),(0,0,0)
-    )
-    neighbors: Optional[List[Tuple[str, float]]] = None
-
+from backend.constants import *
 def load_and_thumb(path: str, max_side: int) -> Image.Image:
     im = Image.open(path).convert("RGBA")
     w,h = im.size
@@ -193,7 +124,7 @@ def layout_images(metas, bounds, steps=1500, attraction=0.16, repel=0.85,
         for m in metas:
             m.x += (m.target_x - m.x)*attraction
             m.y += (m.target_y - m.y)*attraction
-        center_k=Config.CENTER_FORCE_K; cx,cy=x0+W*0.5, y0+H*0.5
+        center_k=CENTER_FORCE_K; cx,cy=x0+W*0.5, y0+H*0.5
         for m in metas:
             mw, mh = int(m.w*m.scale), int(m.h*m.scale)
             mx,my=m.x+mw*0.5, m.y+mh*0.5
@@ -216,8 +147,8 @@ def layout_images(metas, bounds, steps=1500, attraction=0.16, repel=0.85,
 
 def embed_with_clip(imgs: List[Image.Image]) -> np.ndarray:
     import torch, clip
-    device = "cuda" if (Config.CLIP_DEVICE=="auto" and torch.cuda.is_available()) else ("cpu" if Config.CLIP_DEVICE in ["auto","cpu"] else "cuda")
-    model, preprocess = clip.load(Config.CLIP_MODEL, device=device, jit=False)
+    device = "cuda" if (CLIP_DEVICE=="auto" and torch.cuda.is_available()) else ("cpu" if CLIP_DEVICE in ["auto","cpu"] else "cuda")
+    model, preprocess = clip.load(CLIP_MODEL, device=device, jit=False)
     model.eval()
     batch = torch.cat([preprocess(im.convert('RGB')).unsqueeze(0) for im in imgs], dim=0).to(device)
     with torch.no_grad():
@@ -235,7 +166,7 @@ def generate_palette_swatches(imgs: List[Image.Image], k: int) -> List[Tuple[int
     if not samples:
         return [(200,200,200)]*k
     X = np.vstack(samples).astype(np.float32)
-    if Config.PALETTE_METHOD == "median":
+    if PALETTE_METHOD == "median":
         qs = np.linspace(0.1, 0.9, k)
         cols = [tuple(np.quantile(X, q, axis=0).astype(int).tolist()) for q in qs]
         return cols
@@ -280,7 +211,7 @@ def render_title_image(text: str, max_size: Tuple[int,int]) -> Image.Image:
         base_font = ImageFont.load_default()
 
     # Binary search the largest font size that fits WITH the badge padding
-    lo, hi = 18, int(Config.TITLE_FONT_MAX)
+    lo, hi = 18, int(TITLE_FONT_MAX)
     best_size = lo
     probe = ImageDraw.Draw(Image.new("RGBA", (W, H), (0, 0, 0, 0)))
     while lo <= hi:
@@ -314,7 +245,7 @@ def render_title_image(text: str, max_size: Tuple[int,int]) -> Image.Image:
     badge_h = badge_th + BADGE_HPAD
 
     # Now shrink ONLY the text by the configured small margin
-    shrunk_size = max(1, best_size - int(Config.TITLE_TEXT_SHRINK))
+    shrunk_size = max(1, best_size - int(TITLE_TEXT_SHRINK))
     try:
         text_font = ImageFont.truetype(base_font_path, size=shrunk_size) if base_font_path else ImageFont.load_default()
     except Exception:
@@ -354,143 +285,3 @@ def compute_reward(metas, bounds):
                 overlap_pen += ix*iy
     overlap_pen /= max(1.0, float(W*H))
     return 0.7*in_bounds - 0.8*overlap_pen
-
-def main():
-    rng = random.Random(Config.SEED)
-    names = [n for n in os.listdir(Config.IMAGES_DIR) if not n.startswith(".")]
-    valid = {".png",".jpg",".jpeg",".webp",".bmp"}
-    files = [(n, str(Path(Config.IMAGES_DIR)/n)) for n in names if Path(n).suffix.lower() in valid]
-    if not files:
-        raise SystemExit("No images found in ./images")
-
-    thumbs=[]; metas=[]
-    for n,p in files:
-        im = load_and_thumb(p, Config.MAX_THUMB)
-        thumbs.append(im); metas.append(ImgMeta(filename=n, w=im.size[0], h=im.size[1], scale=1.0))
-
-    CW,CH = Config.CANVAS_WIDTH, Config.CANVAS_HEIGHT
-    grid_x0=Config.MARGIN; grid_y0=Config.MARGIN
-    grid_x1=CW-Config.MARGIN; grid_y1=CH-Config.MARGIN
-
-    # Title strip
-    title_side = "top" if len(thumbs)==0 or sum(im.size[0] for im in thumbs)/max(1,len(thumbs)) >= sum(im.size[1] for im in thumbs)/max(1,len(thumbs)) else "left"
-    if Config.TITLE_TEXT:
-        if title_side in ("top","bottom"):
-            strip_h = int(CH * Config.TITLE_MAX_FRACTION)
-            title_strip = (0, 0, CW, strip_h)
-            grid_y0 = max(grid_y0, strip_h)
-        else:
-            strip_w = int(CW * Config.TITLE_MAX_FRACTION)
-            title_strip = (0, 0, strip_w, CH)
-            grid_x0 = max(grid_x0, strip_w)
-        title_img = render_title_image(
-            Config.TITLE_TEXT,
-            (title_strip[2]-title_strip[0]-Config.STRIP_PADDING*2,
-             title_strip[3]-title_strip[1]-Config.STRIP_PADDING*2)
-        )
-    else:
-        title_img=None; title_strip=None
-
-    # Palette strip — trimmed to avoid the title strip
-    palette_colors = generate_palette_swatches(thumbs, Config.PALETTE_SWATCHES)
-    if title_side in ("top","bottom"):
-        palette_side = "right"
-        strip_w = int(CW * Config.PALETTE_MAX_FRACTION)
-        palette_strip = (CW - strip_w, grid_y0, CW, grid_y1)
-        grid_x1 = min(grid_x1, CW - strip_w)
-    else:
-        palette_side = "bottom"
-        strip_h = int(CH * Config.PALETTE_MAX_FRACTION)
-        palette_strip = (grid_x0, CH - strip_h, grid_x1, CH)
-        grid_y1 = min(grid_y1, CH - strip_h)
-
-    palette_img = render_palette_image(
-        palette_colors,
-        (max(1, palette_strip[2]-palette_strip[0]-Config.STRIP_PADDING*2),
-         max(1, palette_strip[3]-palette_strip[1]-Config.STRIP_PADDING*2))
-    )
-
-    grid_bounds = (grid_x0, grid_y0, grid_x1, grid_y1)
-
-    # Features
-    clip_feats=None
-    if Config.USE_CLIP:
-        try:
-            clip_feats = embed_with_clip(thumbs)
-        except Exception as e:
-            raise RuntimeError(f"CLIP embedding failed: {e}. Ensure torch+clip are installed.")
-
-    color_feats = np.array([[c for corner in corner_means(im) for c in corner] for im in thumbs], np.float32)
-    blocks=[]
-    if clip_feats is not None:
-        blocks.append(standardize(clip_feats)*Config.CLIP_WEIGHT)
-    else:
-        blocks.append(np.zeros((len(thumbs),1),np.float32))
-    blocks.append(standardize(color_feats)*Config.COLOR_WEIGHT)
-    X = np.concatenate(blocks,1).astype(np.float32)
-
-    Z = pca_project(X, 2)
-    Zmin=Z.min(0, keepdims=True); Zmax=Z.max(0, keepdims=True)
-    Z = (Z - Zmin) / (Zmax - Zmin + 1e-6)
-    for i,m in enumerate(metas):
-        tx = grid_bounds[0] + Config.MARGIN + Z[i,0]*((grid_bounds[2]-grid_bounds[0])-2*Config.MARGIN - m.w*m.scale)
-        ty = grid_bounds[1] + Config.MARGIN + Z[i,1]*((grid_bounds[3]-grid_bounds[1])-2*Config.MARGIN - m.h*m.scale)
-        tx,ty = bias_toward_center(tx,ty,grid_bounds,Config.CENTER_BIAS_STRENGTH,Config.CENTER_BIAS_GAMMA)
-        m.x = m.target_x = float(tx)
-        m.y = m.target_y = float(ty)
-
-    layout_images(metas, grid_bounds, steps=Config.STEPS, seed=Config.SEED)
-    scale_by_radius(metas, grid_bounds, Config.RADIAL_SCALE_MAX, Config.RADIAL_SCALE_MIN, Config.RADIAL_SCALE_ETA)
-    layout_images(metas, grid_bounds, steps=max(600,Config.STEPS//3), seed=Config.SEED)
-
-    area_w = grid_bounds[2]-grid_bounds[0]; area_h = grid_bounds[3]-grid_bounds[1]
-    target_area = int(max(1, Config.FULL_RATIO if hasattr(Config,'FULL_RATIO') else Config.FILL_RATIO)*area_w*area_h)
-    cur_area = total_area(metas)
-    if cur_area>0:
-        f=(target_area/cur_area)**0.5
-        for m in metas: m.scale*=f
-        layout_images(metas, grid_bounds, steps=max(600,Config.STEPS//3), seed=Config.SEED)
-
-    compact_left_up(metas, grid_bounds, margin=Config.MARGIN, sweeps=Config.COMPACT_STEPS)
-    zoom_to_fit(metas, grid_bounds, margin=Config.MARGIN)
-    layout_images(metas, grid_bounds, steps=400, seed=Config.SEED)
-
-    canvas = Image.new("RGBA", (Config.CANVAS_WIDTH, Config.CANVAS_HEIGHT), (255,255,255,255))
-
-    # Title pinned near top edge
-    if title_img is not None:
-        tx0, ty0, tx1, ty1 = title_strip
-        tw, th = title_img.size
-        px = tx0 + (tx1 - tx0 - tw) // 2
-        py = ty0 + 2
-        canvas.alpha_composite(title_img, (px, py))
-
-    # Palette
-    px0,py0,px1,py1 = palette_strip
-    pw,ph = palette_img.size
-    px = px0 + (px1-px0 - pw)//2
-    py = py0 + (py1-py0 - ph)//2
-    canvas.alpha_composite(palette_img, (px,py))
-
-    # Main images
-    for m,im in zip(metas, thumbs):
-        w,h = int(m.w*m.scale), int(m.h*m.scale)
-        to_paste = im.resize((w,h), Image.LANCZOS) if (w,h)!=im.size else im
-        canvas.alpha_composite(to_paste, (int(m.x), int(m.y)))
-
-    out_dir = Path(Config.OUT_DIR); out_dir.mkdir(parents=True, exist_ok=True)
-    out_png = out_dir/"moodboard.png"
-    out_json = out_dir/"placements.json"
-    canvas.save(out_png)
-    with open(out_json, "w", encoding="utf-8") as f:
-        json.dump({
-            "canvas": {"width": Config.CANVAS_WIDTH, "height": Config.CANVAS_HEIGHT},
-            "grid_bounds": {"x0": grid_bounds[0], "y0": grid_bounds[1], "x1": grid_bounds[2], "y1": grid_bounds[3]},
-            "title": {"text": Config.TITLE_TEXT, "strip": title_strip if title_img is not None else None, "side": title_side},
-            "palette": {"side": "right" if title_side in ("top","bottom") else "bottom", "strip": palette_strip, "colors": palette_colors},
-            "images": [asdict(m) for m in metas]
-        }, f, ensure_ascii=False, indent=2)
-    print(f"Wrote {out_png} and {out_json}")
-
-if __name__ == "__main__":
-    main()

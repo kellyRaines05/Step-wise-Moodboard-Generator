@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>MBGen - New Moodboard</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" type="image/x-icon" href="icon.ico">
+    </head>
+    <body>
+        <header>
+            <div class="title" id="Title"></div>
+        </header>
+        <div id="spinner" style="display:none; text-align:center; margin-top:2rem;">
+            <div class="title">DOWNLOADING THE MODEL</div>
+            <div class="subtitle">This may take a few minutes... do not reload the page.</div>
+            <div class="loader"></div>
+        </div>
+    </body>
+    
+    <script>
+        async function get_title(prompt) {
+            document.getElementById('spinner').style.display = 'block'; 
+            let title_content;
+            try {
+                const response = await fetch('http://localhost:8000/api/generate_title', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt })
+                });
+                if (!response.ok) throw new Error('Error generating title');
+                title_content.title = await response.json();
+            } catch (error) {
+                title_content = null;
+                console.warn(error);
+            }
+            if (title_content) {
+                document.getElementById('Title').innerText = title_content
+            }
+            else {
+                document.getElementById('Title').innerText = "New Moodboard";
+            }
+            document.getElementById('spinner').style.display = 'none';
+        }
+        async function generate(prompt) {
+            try {
+                const response = await fetch('http://localhost:8000/api/generate_moodboard', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt })
+                });
+                if (!response.ok) throw new Error('Error generating moodboard');
+                response_content = await response.json();
+            } catch (error) {
+                response_content = [];
+            }
+        }
+
+        window.onload = function() {
+            const prompt = localStorage.getItem('moodboardPrompt');
+            if (prompt) {
+                get_title(prompt);
+                // generate(prompt);
+            }
+            // else {
+            //     alert('No prompt found. Please use the main page to generate a moodboard.');
+            //     window.location.href = 'homepage.html';
+            // }
+        }
+    </script>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(180deg, #FDF6ED 35%, #FBEDDA 100%);
+            color: #222;
+            min-height: 100vh;
+        }
+        header {
+            text-align: center;
+            padding: 2rem 1rem 1rem 1rem;
+        }
+        .title {
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color:#DE6B48;
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            color:  #45B69C;
+            margin-bottom: 2rem;
+        }
+        .loader {
+          border: 8px solid #f3f3f3;
+          border-top: 8px solid #DE6B48;
+          border-radius: 50%;
+          width: 48px;
+          height: 48px;
+          animation: spin 1s linear infinite;
+          margin: 0 auto;
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg);}
+          100% { transform: rotate(360deg);}
+        }
+    </style>
+</html>
