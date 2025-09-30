@@ -1,8 +1,9 @@
 import math, random
 from typing import List, Tuple
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
-from backend.constants import *
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from constants import *
+
 def load_and_thumb(path: str, max_side: int) -> Image.Image:
     im = Image.open(path).convert("RGBA")
     w,h = im.size
@@ -204,7 +205,7 @@ def render_title_image(text: str, max_size: Tuple[int,int]) -> Image.Image:
 
     # Base font (safe fallback)
     try:
-        base_font_path = "C:\Windows\Fonts\BRADHITC.ttf"
+        base_font_path = "C:/Windows/Fonts/BRADHITC.ttf"
         base_font = ImageFont.truetype(base_font_path, size=96)
     except Exception:
         base_font_path = None
@@ -285,3 +286,171 @@ def compute_reward(metas, bounds):
                 overlap_pen += ix*iy
     overlap_pen /= max(1.0, float(W*H))
     return 0.7*in_bounds - 0.8*overlap_pen
+
+def apply_shape_mask(img: Image.Image, shape: str, feather: int = 1) -> Image.Image:
+    """
+    Return a copy of `img` with an alpha mask applied for the desired shape.
+    shape: "rectangle", "oval", "circle"
+    feather: small integer (0..3) for softer edges (anti-alias); 0 for hard edges.
+    """
+    shape = (shape or "rectangle").strip().lower()
+    if shape == "rectangle":
+        return img  # unchanged
+
+    w, h = img.size
+    # Supersample factor for smoother edges
+    ss = 4
+    mw, mh = w * ss, h * ss
+    from PIL import ImageDraw
+
+    # Create an oversized mask for antialiasing
+    mask_big = Image.new("L", (mw, mh), 0)
+    draw = ImageDraw.Draw(mask_big)
+
+    if shape == "oval":
+        # full ellipse in the rect
+        draw.ellipse([0, 0, mw - 1, mh - 1], fill=255)
+    elif shape == "circle":
+        # centered circle with diameter = min(w,h)
+        d = min(mw, mh)
+        x0 = (mw - d) // 2
+        y0 = (mh - d) // 2
+        draw.ellipse([x0, y0, x0 + d - 1, y0 + d - 1], fill=255)
+    else:
+        # fallback to rectangle if unknown
+        return img
+
+    # Optional feathering: slight blur via downscale (already anti-aliased), plus extra soften
+    mask = mask_big.resize((w, h), Image.LANCZOS)
+    if feather and feather > 0:
+        # simple extra soften by shrinking and re-enlarging a tiny bit
+        fw = max(1, w - feather)
+        fh = max(1, h - feather)
+        mask = mask.resize((fw, fh), Image.LANCZOS).resize((w, h), Image.LANCZOS)
+
+    # Apply alpha: keep RGB, replace alpha with mask
+    if img.mode != "RGBA":
+        img = img.convert("RGBA")
+    r, g, b, *rest = img.split() if img.mode == "RGBA" else (*img.split(),)
+    shaped = Image.merge("RGBA", (img.split()[0], img.split()[1], img.split()[2], mask))
+    return shaped
+
+def _rgb_palette_distance(im: Image.Image, palette_rgb: np.ndarray) -> float:
+    """
+    Mean distance of image average color to closest palette swatch (0..1 after normalization).
+    """
+    arr = np.asarray(im.convert('RGB')).reshape(-1, 3).astype(np.float32) / 255.0
+    mean = arr.mean(axis=0, keepdims=True)  # (1,3)
+    # Euclidean to each swatch
+    d = np.sqrt(((mean - palette_rgb) ** 2).sum(axis=1))  # (K,)
+    return float(d.min())
+
+def _edge_density(im: Image.Image) -> float:
+    """
+    Simple edge density via Sobel-ish magnitude from a downsized luminance image.
+    Returns ~0..1 (normalized).
+    """
+    small = im.convert('L').resize((96, 96), Image.LANCZOS)
+    arr = np.asarray(small).astype(np.float32) / 255.0
+    gx = np.zeros_like(arr); gy = np.zeros_like(arr)
+    # quick 3x3 gradients
+    gx[1:-1,1:-1] = (arr[1:-1,2:] - arr[1:-1,:-2]) * 0.5
+    gy[1:-1,1:-1] = (arr[2:,1:-1] - arr[:-2,1:-1]) * 0.5
+    mag = np.sqrt(gx*gx + gy*gy)
+    return float(np.clip(mag.mean()*2.0, 0.0, 1.0))
+
+def _aspect_pleasantness(w: int, h: int) -> float:
+    """
+    Scores aspect ratios near ~1.2–1.6 slightly higher; penalizes extremes.
+    Normalize to 0..1.
+    """
+    r = max(w, h) / max(1.0, min(w, h))
+    target = 1.4
+    diff = abs(r - target)
+    # decay; diff=0 -> 1, diff>=1.4 -> ~0
+    score = np.exp(-diff * 1.2)
+    return float(np.clip(score, 0.0, 1.0))
+
+def _clip_title_similarity(clip_img_feats: np.ndarray, clip_txt_feat: np.ndarray) -> np.ndarray:
+    """
+    cosine similarity (0..1) between each image and the title text embedding.
+    """
+    # feats are L2-normalized in your embed function already; still guard:
+    I = clip_img_feats / (np.linalg.norm(clip_img_feats, axis=1, keepdims=True) + 1e-6)
+    t = clip_txt_feat / (np.linalg.norm(clip_txt_feat) + 1e-6)
+    sim = I @ t  # [-1..1]
+    sim = (sim + 1.0) * 0.5  # map to 0..1
+    return sim
+
+def _embed_title_text(text: str):
+    import torch, clip
+    device = "cuda" if (CLIP_DEVICE=="auto" and torch.cuda.is_available()) else ("cpu" if CLIP_DEVICE in ["auto","cpu"] else "cuda")
+    model, preprocess = clip.load(CLIP_MODEL, device=device, jit=False)
+    model.eval()
+    with torch.no_grad():
+        tokens = clip.tokenize([text]).to(device)
+        feat = model.encode_text(tokens)[0]
+        feat = feat / feat.norm()
+    return feat.detach().cpu().numpy().astype(np.float32)
+
+def assign_shapes_autonomous(thumbs, metas, palette_colors, clip_img_feats=None, title_text: str="") -> None:
+    """
+    Mutates each ImgMeta by setting a new attribute `shape` to 'circle'|'oval'|'rectangle'
+    based on a blended aesthetic score with diversity caps.
+    """
+    N = len(thumbs)
+    if N == 0:
+        return
+
+    # Normalize palette to 0..1
+    pal = np.array(palette_colors, dtype=np.float32) / 255.0  # (K,3)
+
+    # Collect components
+    edge = np.array([_edge_density(im) for im in thumbs], dtype=np.float32)            # 0..1
+    aspect = np.array([_aspect_pleasantness(m.w, m.h) for m in metas], dtype=np.float32)  # 0..1
+    palclose = np.array([1.0 - _rgb_palette_distance(im, pal) for im in thumbs], dtype=np.float32)  # higher=closer -> 0..1
+
+    # Title relevance via CLIP (optional)
+    if USE_CLIP and clip_img_feats is not None and title_text:
+        txt_feat = _embed_title_text(title_text)
+        rel = _clip_title_similarity(clip_img_feats, txt_feat).astype(np.float32)
+    else:
+        rel = np.zeros(N, dtype=np.float32)
+
+    # Blend to aesthetic score
+    score = (W_CLIP_TITLE * rel
+            + W_PALETTE    * palclose
+            + W_ENTROPY    * edge
+            + W_ASPECT     * aspect)
+
+    # Normalize to 0..1
+    if score.max() > score.min():
+        score = (score - score.min()) / (score.max() - score.min())
+    else:
+        score[:] = 0.5
+
+    # Rank and assign with caps for diversity
+    order = np.argsort(-score)  # high to low
+    max_circle = int(MAX_CIRCLE_FRAC * N)
+    max_oval   = int(MAX_OVAL_FRAC   * N)
+    want_circle = int(CIRCLE_TOP_P * N)
+    want_oval   = int(OVAL_NEXT_P  * N)
+
+    # Initial desired bins
+    circle_cut = min(want_circle, max_circle)
+    oval_cut   = min(want_circle + want_oval, max_oval + circle_cut)
+
+    shapes = ['rectangle'] * N
+    for i, idx in enumerate(order):
+        if i < circle_cut:
+            shapes[idx] = 'circle'
+        elif i < oval_cut:
+            shapes[idx] = 'oval'
+        else:
+            shapes[idx] = 'rectangle'
+
+    # write back
+    for i, m in enumerate(metas):
+        setattr(m, 'shape', shapes[i])
+
+

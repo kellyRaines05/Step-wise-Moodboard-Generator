@@ -19,6 +19,26 @@ STEPS = 2500
 COMPACT_STEPS = 10
 SEED = 42
 
+# --- Auto-shape controls ---
+SHAPE_MODE = "auto"   # "auto" or "fixed"; if "fixed", use SHAPE below
+SHAPE = "rectangle"   # used only when SHAPE_MODE="fixed"  ("rectangle"|"oval"|"circle")
+
+# Aesthetic score weights (tweak to taste)
+W_CLIP_TITLE = 0.5     # relevance to title text
+W_PALETTE = 0.25       # closeness to palette colors
+W_ENTROPY = 0.15       # texture/edge density (more = higher)
+W_ASPECT = 0.10        # “pleasant” aspect; penalize extremes a bit
+
+# Shape thresholds (after normalization to 0..1)
+CIRCLE_TOP_P = 0.30    # top 30% by aesthetic score -> circle (cap below applies)
+OVAL_NEXT_P  = 0.40    # next 40% -> oval; rest rectangle
+
+# Diversity caps to avoid too many circles/ovals
+MAX_CIRCLE_FRAC = 0.35
+MAX_OVAL_FRAC   = 0.45
+
+SHAPE_EDGE_FEATHER = 4
+
 TITLE_MAX_FRACTION = 0.18
 PALETTE_MAX_FRACTION = 0.16
 STRIP_PADDING = 6

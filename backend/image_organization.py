@@ -22,6 +22,7 @@ class ImgMeta:
         (0,0,0),(0,0,0),(0,0,0),(0,0,0)
     )
     neighbors: Optional[List[Tuple[str, float]]] = None
+    shape: str = "rectangle"  # added for shape assignment
 
 if ALLOW_DUPLICATE_OMP:
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -37,14 +38,15 @@ class ImageOrganization:
     def organize_images(self):
         names = [n for n in os.listdir(self.images_dir) if not n.startswith(".")]
         valid = {".png",".jpg",".jpeg",".webp",".bmp"}
-        files = [(n, str(Path(self.image_dir)/n)) for n in names if Path(n).suffix.lower() in valid]
+        files = [(n, str(Path(self.images_dir)/n)) for n in names if Path(n).suffix.lower() in valid]
         if not files:
             raise SystemExit("No images found in ./images")
 
         thumbs=[]; metas=[]
         for n,p in files:
             im = load_and_thumb(p, MAX_THUMB)
-            thumbs.append(im); metas.append(ImgMeta(filename=n, w=im.size[0], h=im.size[1], scale=1.0))
+            thumbs.append(im)
+            metas.append(ImgMeta(filename=n, w=im.size[0], h=im.size[1], scale=1.0))
 
         CW,CH = CANVAS_WIDTH, CANVAS_HEIGHT
         grid_x0=MARGIN; grid_y0=MARGIN
@@ -64,7 +66,7 @@ class ImageOrganization:
             title_img = render_title_image(
                 self.title,
                 (title_strip[2]-title_strip[0]-STRIP_PADDING*2,
-                title_strip[3]-title_strip[1]-STRIP_PADDING*2)
+                 title_strip[3]-title_strip[1]-STRIP_PADDING*2)
             )
         else:
             title_img=None; title_strip=None
@@ -85,7 +87,7 @@ class ImageOrganization:
         palette_img = render_palette_image(
             palette_colors,
             (max(1, palette_strip[2]-palette_strip[0]-STRIP_PADDING*2),
-            max(1, palette_strip[3]-palette_strip[1]-STRIP_PADDING*2))
+             max(1, palette_strip[3]-palette_strip[1]-STRIP_PADDING*2))
         )
 
         grid_bounds = (grid_x0, grid_y0, grid_x1, grid_y1)
@@ -106,6 +108,19 @@ class ImageOrganization:
             blocks.append(np.zeros((len(thumbs),1),np.float32))
         blocks.append(standardize(color_feats)*COLOR_WEIGHT)
         X = np.concatenate(blocks,1).astype(np.float32)
+
+        # === Shape assignment block ===
+        clip_feats_np = clip_feats if clip_feats is not None else None
+        if SHAPE_MODE.lower() == "auto":
+            assign_shapes_autonomous(
+                thumbs, metas, palette_colors,
+                clip_img_feats=clip_feats_np,
+                title_text=self.title or ""
+            )
+        else:
+            for m in metas:
+                m.shape = SHAPE.lower()
+        # ==============================
 
         Z = pca_project(X, 2)
         Zmin=Z.min(0, keepdims=True); Zmax=Z.max(0, keepdims=True)
@@ -149,12 +164,17 @@ class ImageOrganization:
         self.canvas.alpha_composite(palette_img, (px,py))
 
         # Main images
-        for m,im in zip(metas, thumbs):
-            w,h = int(m.w*m.scale), int(m.h*m.scale)
-            to_paste = im.resize((w,h), Image.LANCZOS) if (w,h)!=im.size else im
+        for m, im in zip(metas, thumbs):
+            w, h = int(m.w * m.scale), int(m.h * m.scale)
+            to_paste = im.resize((w, h), Image.LANCZOS) if (w, h) != im.size else im
+
+            # === apply shape mask here ===
+            to_paste = apply_shape_mask(to_paste, m.shape, feather=SHAPE_EDGE_FEATHER)
+            # =============================
+
             self.canvas.alpha_composite(to_paste, (int(m.x), int(m.y)))
 
-        out_json = f"{self.out_dir}/{self.title}_{id}_placement.json"
+        out_json = f"{self.out_dir}/{self.title}_{uuid.uuid4()}_placement.json"
         with open(out_json, "w", encoding="utf-8") as f:
             json.dump({
                 "canvas": {"width": CANVAS_WIDTH, "height": CANVAS_HEIGHT},
@@ -169,7 +189,5 @@ class ImageOrganization:
         out_dir = Path(self.out_dir); out_dir.mkdir(parents=True, exist_ok=True)
         id = str(uuid.uuid4())
         out_png = f"{out_dir}/{self.title}_{id}.png"
-        
         self.canvas.save(out_png)
-
         print(f"Wrote {out_png}")

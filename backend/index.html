@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Interactive Moodboard (Inspector Panel + Shapes)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root { --ui:#2b6cb0; --panel:#ffffff; --bg:#f3f3f3; --border:#ddd; }
+  html,body { margin:0; background:var(--bg); font-family:system-ui,Segoe UI,Arial,sans-serif; }
+  .topbar {
+    display:flex; gap:12px; align-items:center; padding:12px 16px; background:#fff;
+    box-shadow:0 1px 6px rgba(0,0,0,.06); position:sticky; top:0; z-index:10; flex-wrap:wrap;
+  }
+  .hint { color:#666; font-size:13px; }
+  .layout { display:flex; align-items:flex-start; gap:12px; padding:12px; }
+  .canvasWrap { flex: 1 1 auto; display:flex; justify-content:center; }
+  canvas { background:#fff; border:1px solid var(--border); }
+  /* Inspector panel */
+  .panel {
+    width: 320px; flex: 0 0 320px; background: var(--panel);
+    border-left:1px solid var(--border); box-shadow:0 1px 6px rgba(0,0,0,.06);
+    position:sticky; top:64px; align-self:flex-start; max-height: calc(100vh - 80px); overflow:auto;
+    border-radius: 8px;
+  }
+  .panel header { padding:10px 12px; border-bottom:1px solid var(--border); font-weight:600; }
+  .panel section { padding:10px 12px; border-bottom:1px solid var(--border); }
+  .panel .row { display:flex; align-items:center; gap:8px; margin:8px 0; }
+  .panel label { width: 110px; font-size:13px; color:#444; }
+  .panel input[type="text"],
+  .panel input[type="number"],
+  .panel select {
+    flex:1 1 auto; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-size:14px;
+  }
+  .panel input[type="color"] { width: 48px; height: 32px; padding:0; border:1px solid var(--border); border-radius:6px; }
+  .panel .muted { color:#777; font-size:12px; }
+  button { padding:6px 10px; border:1px solid #ccc; background:#fff; border-radius:6px; cursor:pointer; }
+  button:active { transform: translateY(1px); }
+
+  /* Title editor (still available on double-click) */
+  #titleEditor {
+    position:absolute; z-index:20; display:none; border:1px solid var(--ui);
+    box-shadow:0 2px 10px rgba(0,0,0,.12); padding:6px 10px; background:#fff; border-radius:6px;
+    font: 24px "MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif; outline:none;
+  }
+
+  /* Optional TTF webfont wiring */
+  @font-face {
+    font-family: 'MoodboardTitle';
+    src: url('../fonts/BradleyHandITC.ttf') format('truetype'); /* will silently fail if file not present */
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <label>Load JSON <input type="file" id="jsonInput" accept=".json"></label>
+  <button id="fitBtn">Fit to JSON Canvas</button>
+  <button id="undoBtn" title="Ctrl+Z">Undo</button>
+  <button id="redoBtn" title="Ctrl+Y / Ctrl+Shift+Z">Redo</button>
+  <span class="hint">Click an object to edit • Drag to move • Drag corners to resize • Top circle to rotate • Ctrl+Z to undo</span>
+</div>
+
+<div class="layout">
+  <div class="canvasWrap">
+    <canvas id="board" width="1200" height="800"></canvas>
+    <input id="titleEditor" />
+  </div>
+
+  <!-- Inspector panel -->
+  <aside class="panel" id="inspector" hidden>
+    <header id="panelTitle">Inspector</header>
+    <section id="commonSection">
+      <div class="row"><label>Type</label><div id="objType" class="muted">—</div></div>
+      <div class="row"><label>Filename</label><div id="objFilename" class="muted">—</div></div>
+      <div class="row">
+        <label>X</label><input type="number" id="inpX" step="1">
+      </div>
+      <div class="row">
+        <label>Y</label><input type="number" id="inpY" step="1">
+      </div>
+      <div class="row">
+        <label>Width</label><input type="number" id="inpW" step="1" min="1">
+      </div>
+      <div class="row">
+        <label>Height</label><input type="number" id="inpH" step="1" min="1">
+      </div>
+      <div class="row">
+        <label>Scale</label><input type="number" id="inpScale" step="0.01" min="0.05">
+      </div>
+      <div class="row">
+        <label>Rotation°</label><input type="number" id="inpRot" step="1">
+      </div>
+      <div class="row" id="shapeRow">
+        <label>Mask Shape</label>
+        <select id="inpShape">
+          <option value="rectangle">Rectangle</option>
+          <option value="circle">Circle</option>
+          <option value="oval">Oval</option>
+        </select>
+      </div>
+    </section>
+
+    <section id="titleSection" hidden>
+      <div class="row">
+        <label>Title Text</label><input type="text" id="inpTitleText" placeholder="Enter title...">
+      </div>
+      <div class="row">
+        <label>Text Color</label><input type="color" id="inpTitleColor">
+      </div>
+      <div class="row">
+        <label>Badge Color</label><input type="color" id="inpTitleBG">
+      </div>
+      <div class="row">
+        <label>Font Family</label>
+        <input type="text" id="inpTitleFont" placeholder='"MoodboardTitle", "Bradley Hand", Segoe UI, Arial'>
+      </div>
+      <div class="row">
+        <label></label><div class="muted">Tip: add a TTF at <code>../fonts/BradleyHandITC.ttf</code> to use the included @font-face.</div>
+      </div>
+    </section>
+
+    <section id="paletteSection" hidden>
+      <div class="row"><label>Status</label><div class="muted">Palette is fixed (not selectable).</div></div>
+    </section>
+  </aside>
+</div>
+
+<script>
+/* ================= Canvas + State ================= */
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+const titleEditor = document.getElementById('titleEditor');
+
+let objects = [];       // draw order: back -> front
+let nextId = 1;         // unique ids
+let selected = null;
+let dragMode = null;    // 'move' | 'scale' | 'rotate' | null
+let lastMouse = {x:0,y:0};
+let jsonCanvasW = canvas.width, jsonCanvasH = canvas.height;
+
+/* ================= Undo / Redo ================= */
+const undoStack = [];
+const redoStack = [];
+function snapshot() {
+  return {
+    canvas: {w: canvas.width, h: canvas.height},
+    objects: objects.map(o => ({
+      id: o.id, type: o.type,
+      filename: o.filename || null,
+      text: o.text || null, bg: o.bg || null, color: o.color || null, font: o.font || null,
+      x: o.x, y: o.y, w: o.w, h: o.h, angle: o.angle, scale: o.scale,
+      shape: o.shape || 'rectangle',
+      colors: o.colors || null,
+      selectable: o.selectable !== false
+    })),
+    selectedId: selected ? selected.id : null
+  };
+}
+function pushUndo(){ undoStack.push(snapshot()); redoStack.length = 0; }
+function restore(state){
+  if(!state) return;
+  const byId = new Map(objects.map(o=>[o.id,o]));
+  for(const so of state.objects){
+    let o = byId.get(so.id);
+    if(!o){
+      if (so.type === 'image') o = { id: so.id, type:'image', img:null, filename:so.filename };
+      else if (so.type === 'title') o = { id: so.id, type:'title' };
+      else if (so.type === 'palette') o = { id: so.id, type:'palette' };
+      byId.set(so.id,o);
+    }
+    Object.assign(o,{
+      x:so.x,y:so.y,w:so.w,h:so.h,angle:so.angle,scale:so.scale,shape:so.shape||'rectangle',
+      selectable: so.selectable !== false
+    });
+    if(so.type==='title'){
+      o.text=so.text; o.bg=so.bg||'#ece4dc'; o.color=so.color||'#1e1e1e';
+      o.font=so.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
+    }
+    if(so.type==='palette'){ o.colors = Array.isArray(so.colors) ? so.colors : []; }
+  }
+  objects = state.objects.map(so=>byId.get(so.id)).filter(Boolean);
+  selected = objects.find(o=>o.id===state.selectedId) || null;
+  canvas.width = state.canvas.w; canvas.height = state.canvas.h;
+  draw();
+}
+function undo(){ if(!undoStack.length) return; const cur=snapshot(); const prev=undoStack.pop(); redoStack.push(cur); restore(prev); }
+function redo(){ if(!redoStack.length) return; const cur=snapshot(); const next=redoStack.pop(); undoStack.push(cur); restore(next); }
+
+/* ================= Utilities ================= */
+function baseName(path){ return String(path).split(/[\\/]/).pop(); }
+function loadImage(src){
+  return new Promise((resolve,reject)=>{ const img=new Image(); img.onload=()=>resolve(img); img.onerror=reject; img.src=src; });
+}
+async function loadWithFallback(filename){
+  const name = baseName(filename);
+  const candidates = ['../images/'+name, './images/'+name];
+  for(const url of candidates){ try { return await loadImage(url); } catch(e){} }
+  throw new Error('Image not found: '+name);
+}
+function toLocal(obj,x,y){
+  const s=obj.scale, c=Math.cos(obj.angle), d=Math.sin(obj.angle);
+  const dx=x-(obj.x+obj.w/2), dy=y-(obj.y+obj.h/2);
+  return { x:( dx*c + dy*d)/s, y:(-dx*d + dy*c)/s };
+}
+function toScreen(obj,lx,ly){
+  const s=obj.scale, c=Math.cos(obj.angle), d=Math.sin(obj.angle);
+  return { x:obj.x+obj.w/2+( lx*c - ly*d )*s, y:obj.y+obj.h/2+( lx*d + ly*c )*s };
+}
+
+/* ================= Shapes ================= */
+function clipByShape(obj){
+  const hw = obj.w/2, hh = obj.h/2;
+  const shape = (obj.shape||'rectangle').toLowerCase();
+  if(shape === 'rectangle'){ ctx.rect(-hw, -hh, obj.w, obj.h); }
+  else if(shape === 'circle'){ const r = Math.min(hw, hh); ctx.ellipse(0, 0, r, r, 0, 0, Math.PI*2); }
+  else if(shape === 'oval'){ ctx.ellipse(0, 0, hw, hh, 0, 0, Math.PI*2); }
+  else { ctx.rect(-hw, -hh, obj.w, obj.h); }
+}
+
+/* ================= Drawing ================= */
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  for(const obj of objects){
+    ctx.save();
+    ctx.translate(obj.x+obj.w/2, obj.y+obj.h/2);
+    ctx.rotate(obj.angle);
+    ctx.scale(obj.scale, obj.scale);
+
+    if(obj.type==='palette'){
+      const gap = 8, inset = 10;
+      const usableW = obj.w - 2*inset, usableH = obj.h - 2*inset;
+      const n = Math.max(1, (obj.colors||[]).length);
+      const swH = Math.floor((usableH - gap*(n-1)) / n);
+      let y = -obj.h/2 + inset;
+      for (let i=0;i<n;i++){
+        const c = obj.colors[i] || [200,200,200];
+        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.fillRect(-obj.w/2 + inset, y, usableW, swH);
+        y += swH + gap;
+      }
+    }
+    else if(obj.type==='image' && obj.img){
+      ctx.save(); ctx.beginPath(); clipByShape(obj); ctx.clip();
+      ctx.drawImage(obj.img, -obj.w/2, -obj.h/2, obj.w, obj.h);
+      ctx.restore();
+    }
+    else if(obj.type==='title'){
+      ctx.fillStyle = obj.bg || '#ece4dc';
+      roundRect(ctx, -obj.w/2, -obj.h/2, obj.w, obj.h, 10); ctx.fill();
+
+      const pad = 14;
+      let fontPx = Math.min(64, Math.max(14, obj.h - pad*2));
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      const family = obj.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
+      ctx.fillStyle = obj.color || '#1e1e1e';
+      ctx.font = `${fontPx}px ${family}`;
+      let metrics = ctx.measureText(obj.text || '');
+      while(metrics.width > obj.w - pad*2 && fontPx > 10){
+        fontPx -= 1; ctx.font = `${fontPx}px ${family}`;
+        metrics = ctx.measureText(obj.text || '');
+      }
+      ctx.fillText(obj.text || '', 0, 0);
+    }
+
+    // selection UI
+    const selectable = obj.selectable !== false;
+    if(selectable && obj===selected){
+      ctx.lineWidth = 2/obj.scale;
+      ctx.strokeStyle = '#2b6cb0';
+      ctx.setLineDash([6/obj.scale,6/obj.scale]);
+      roundRect(ctx, -obj.w/2, -obj.h/2, obj.w, obj.h, 6/obj.scale); ctx.stroke();
+      ctx.setLineDash([]);
+
+      const hs = 8/obj.scale;
+      const pts = handlePoints(obj);
+      ctx.fillStyle='#fff'; ctx.strokeStyle='#2b6cb0';
+      for(const p of pts){ ctx.beginPath(); ctx.rect(p.x-hs/2, p.y-hs/2, hs, hs); ctx.fill(); ctx.stroke(); }
+      const rot = rotationHandleLocal(obj);
+      ctx.beginPath(); ctx.arc(rot.x, rot.y, 8/obj.scale, 0, Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,-obj.h/2); ctx.lineTo(rot.x,rot.y); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // update inspector if visible
+  updateInspectorFields();
+}
+function roundRect(ctx,x,y,w,h,r){
+  const rr=Math.min(r,Math.abs(w)/2,Math.abs(h)/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr,y);
+  ctx.arcTo(x+w,y,  x+w,y+h, rr);
+  ctx.arcTo(x+w,y+h,x,  y+h, rr);
+  ctx.arcTo(x,  y+h,x,  y,   rr);
+  ctx.arcTo(x,  y,  x+w,y,   rr);
+  ctx.closePath();
+}
+function handlePoints(obj){
+  if (obj.selectable === false) return [];
+  const hw=obj.w/2, hh=obj.h/2;
+  return [
+    {x:-hw,y:-hh},{x:0,y:-hh},{x:hw,y:-hh},
+    {x: hw,y: 0 },{x:hw,y: hh},
+    {x:  0,y: hh},{x:-hw,y: hh},{x:-hw,y:0},
+  ];
+}
+function rotationHandleLocal(obj){ return {x:0, y:-(obj.h/2+30)}; }
+
+/* ================= Hit Testing ================= */
+function hitTest(x,y){
+  for(let i=objects.length-1;i>=0;i--){
+    const obj=objects[i];
+    if (obj.selectable === false) continue;
+
+    const rLoc=rotationHandleLocal(obj), rScr=toScreen(obj,rLoc.x,rLoc.y);
+    if((x-rScr.x)**2+(y-rScr.y)**2 <= 12**2) return {obj,hit:{type:'rotate'}};
+
+    const pts=handlePoints(obj).map(p=>toScreen(obj,p.x,p.y));
+    for(let h=0;h<pts.length;h++){
+      const p=pts[h];
+      if(Math.abs(x-p.x)<=8 && Math.abs(y-p.y)<=8) return {obj,hit:{type:'scale',index:h}};
+    }
+
+    const lp=toLocal(obj,x,y);
+    if(lp.x>=-obj.w/2 && lp.x<=obj.w/2 && lp.y>=-obj.h/2 && lp.y<=obj.h/2) return {obj,hit:{type:'move'}};
+  }
+  return {obj:null,hit:null};
+}
+
+/* ================= Interaction ================= */
+canvas.addEventListener('mousedown',(e)=>{
+  const r=canvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
+  const {obj,hit}=hitTest(x,y);
+  pushUndo();
+  selected=obj; dragMode=hit?hit.type:null; lastMouse={x,y};
+
+  if(selected){ const i=objects.indexOf(selected); objects.splice(i,1); objects.push(selected); }
+  // show panel for new selection
+  showInspector(!!selected);
+  draw();
+});
+
+window.addEventListener('mousemove',(e)=>{
+  if(!selected || !dragMode) return;
+  const r=canvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
+
+  if(dragMode==='move'){ selected.x += x-lastMouse.x; selected.y += y-lastMouse.y; }
+  else if(dragMode==='rotate'){ const cx=selected.x+selected.w/2, cy=selected.y+selected.h/2; selected.angle=Math.atan2(y-cy,x-cx)-Math.PI/2; }
+  else if(dragMode==='scale'){ const lp=toLocal(selected,x,y); const s=Math.max(0.05, Math.max(Math.abs(lp.x)/(selected.w/2), Math.abs(lp.y)/(selected.h/2))); selected.scale=s; }
+
+  lastMouse={x,y}; draw();
+});
+
+window.addEventListener('mouseup',()=>{ dragMode=null; });
+
+document.addEventListener('keydown',(e)=>{
+  if((e.ctrlKey||e.metaKey) && !e.shiftKey && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); showInspector(!!selected); return; }
+  if((e.ctrlKey||e.metaKey) && (e.key.toLowerCase()==='y' || (e.shiftKey && e.key.toLowerCase()==='z'))){ e.preventDefault(); redo(); showInspector(!!selected); return; }
+
+  if(!selected) return;
+  if(e.key==='Delete' || e.key==='Backspace'){
+    pushUndo();
+    objects = objects.filter(o=>o!==selected);
+    selected = null;
+    showInspector(false);
+    draw();
+  }
+});
+
+/* ================= Title Inline (still supported) ================= */
+function startTitleEdit(obj){
+  if (obj.type!=='title') return;
+  const pts=[toScreen(obj,-obj.w/2,-obj.h/2),toScreen(obj,obj.w/2,-obj.h/2),toScreen(obj,obj.w/2,obj.h/2),toScreen(obj,-obj.w/2,obj.h/2)];
+  const minX=Math.min(...pts.map(p=>p.x)), maxX=Math.max(...pts.map(p=>p.x));
+  const minY=Math.min(...pts.map(p=>p.y)), maxY=Math.max(...pts.map(p=>p.y));
+  titleEditor.style.left=(minX+window.scrollX+4)+'px';
+  titleEditor.style.top =(minY+window.scrollY+4)+'px';
+  titleEditor.style.width =Math.max(50,(maxX-minX)-8)+'px';
+  titleEditor.style.height=Math.max(24,(maxY-minY)-8)+'px';
+  titleEditor.value=obj.text||''; titleEditor.style.display='block'; titleEditor.focus(); titleEditor.select();
+
+  const commit=()=>{ pushUndo(); obj.text=titleEditor.value; titleEditor.style.display='none'; titleEditor.onblur=null; titleEditor.onkeydown=null; draw(); updateInspectorFields(); };
+  titleEditor.onblur=commit;
+  titleEditor.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); commit(); } if(ev.key==='Escape'){ titleEditor.style.display='none'; } };
+}
+
+/* ================= JSON load (preload ../images) ================= */
+document.getElementById('jsonInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  const text = await file.text(); const data = JSON.parse(text);
+
+  if(data.canvas){ jsonCanvasW=data.canvas.width||canvas.width; jsonCanvasH=data.canvas.height||canvas.height; canvas.width=jsonCanvasW; canvas.height=jsonCanvasH; }
+
+  objects = [];
+
+  // Palette first (non-selectable)
+  if (data.palette && Array.isArray(data.palette.colors) && data.palette.strip) {
+    const s = data.palette.strip;
+    objects.push({
+      id: nextId++,
+      type: 'palette',
+      x: s[0], y: s[1],
+      w: (s[2]-s[0]), h: (s[3]-s[1]),
+      angle: 0, scale: 1,
+      colors: data.palette.colors,
+      selectable: false
+    });
+  }
+
+  // Title
+  if(data.title && data.title.strip){
+    const s=data.title.strip;
+    objects.push({
+      id:nextId++, type:'title',
+      text:data.title.text||'Title',
+      x:s[0]+12, y:s[1]+8, w:(s[2]-s[0]-24), h:(s[3]-s[1]-16),
+      angle:0, scale:1,
+      bg:'#ece4dc', color:'#1e1e1e',
+      font:`"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`,
+      shape:'rectangle'
+    });
+  }
+
+  // Images
+  if(Array.isArray(data.images)){
+    for(const m of data.images){
+      if(!m.filename) continue;
+      const name=baseName(m.filename);
+      let img=null; try{ img=await loadWithFallback(name); }catch(err){ console.warn('Failed to load image:', name, err); }
+      objects.push({
+        id:nextId++, type:'image',
+        img, filename:name,
+        x:m.x, y:m.y, w:m.w*m.scale, h:m.h*m.scale,
+        angle:0, scale:1,
+        shape: (m.shape || 'rectangle')
+      });
+    }
+  }
+
+  // reset selection + inspector
+  selected = null;
+  showInspector(false);
+
+  undoStack.length=0; redoStack.length=0; pushUndo(); draw();
+});
+
+/* ================= Fit button ================= */
+document.getElementById('fitBtn').addEventListener('click', ()=>{ canvas.width=jsonCanvasW; canvas.height=jsonCanvasH; draw(); });
+
+/* ================= Inspector Panel Logic ================= */
+const inspector = document.getElementById('inspector');
+const panelTitle = document.getElementById('panelTitle');
+const objTypeEl = document.getElementById('objType');
+const objFilenameEl = document.getElementById('objFilename');
+const commonSection = document.getElementById('commonSection');
+const titleSection = document.getElementById('titleSection');
+const paletteSection = document.getElementById('paletteSection');
+
+const inpX = document.getElementById('inpX');
+const inpY = document.getElementById('inpY');
+const inpW = document.getElementById('inpW');
+const inpH = document.getElementById('inpH');
+const inpScale = document.getElementById('inpScale');
+const inpRot = document.getElementById('inpRot');
+const inpShape = document.getElementById('inpShape');
+
+const inpTitleText = document.getElementById('inpTitleText');
+const inpTitleColor = document.getElementById('inpTitleColor');
+const inpTitleBG = document.getElementById('inpTitleBG');
+const inpTitleFont = document.getElementById('inpTitleFont');
+
+function showInspector(show){ inspector.hidden = !show; }
+function updateInspectorFields(){
+  if(!selected){ return; }
+  // Header
+  panelTitle.textContent = `Inspector — ${selected.type}`;
+  objTypeEl.textContent = selected.type;
+  objFilenameEl.textContent = selected.filename || '—';
+
+  // Common
+  inpX.value = Math.round(selected.x);
+  inpY.value = Math.round(selected.y);
+  inpW.value = Math.round(selected.w);
+  inpH.value = Math.round(selected.h);
+  inpScale.value = Number(selected.scale.toFixed(2));
+  inpRot.value = Math.round(selected.angle * 180 / Math.PI);
+  // Shape visible only for image and title? Keep for image; title fixed rect
+  if (selected.type === 'image') {
+    document.getElementById('shapeRow').style.display = '';
+    inpShape.value = (selected.shape || 'rectangle');
+  } else {
+    document.getElementById('shapeRow').style.display = 'none';
+  }
+
+  // Sections
+  titleSection.hidden = selected.type !== 'title';
+  paletteSection.hidden = selected.type !== 'palette';
+
+  if (selected.type === 'title') {
+    inpTitleText.value = selected.text || '';
+    // Convert rgba/hex as needed; default hex if missing
+    inpTitleColor.value = toHexColor(selected.color || '#1e1e1e');
+    inpTitleBG.value = toHexColor(selected.bg || '#ece4dc');
+    inpTitleFont.value = selected.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
+  }
+}
+function toHexColor(v) {
+  if (!v) return '#000000';
+  if (v.startsWith('#')) return v;
+  // try rgb(r,g,b)
+  const m = v.match(/rgb\s*\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)\s*\)/i);
+  if (m) {
+    const r = (+m[1]).toString(16).padStart(2,'0');
+    const g = (+m[2]).toString(16).padStart(2,'0');
+    const b = (+m[3]).toString(16).padStart(2,'0');
+    return `#${r}${g}${b}`;
+  }
+  return '#000000';
+}
+function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+
+// Bind inputs → selected object (with undo)
+function bindCommonInputs(){
+  function commit(fn){ if(!selected) return; pushUndo(); fn(); draw(); }
+  inpX.addEventListener('change', ()=> commit(()=> selected.x = +inpX.value));
+  inpY.addEventListener('change', ()=> commit(()=> selected.y = +inpY.value));
+  inpW.addEventListener('change', ()=> commit(()=> selected.w = Math.max(1, +inpW.value)));
+  inpH.addEventListener('change', ()=> commit(()=> selected.h = Math.max(1, +inpH.value)));
+  inpScale.addEventListener('change', ()=> commit(()=> selected.scale = clamp(+inpScale.value, 0.05, 100)));
+  inpRot.addEventListener('change', ()=> commit(()=> selected.angle = (+inpRot.value) * Math.PI / 180));
+  inpShape.addEventListener('change', ()=> commit(()=> selected.shape = inpShape.value));
+}
+function bindTitleInputs(){
+  function commit(fn){ if(!selected || selected.type!=='title') return; pushUndo(); fn(); draw(); }
+  inpTitleText.addEventListener('input', ()=> commit(()=> selected.text = inpTitleText.value));
+  inpTitleColor.addEventListener('change', ()=> commit(()=> selected.color = inpTitleColor.value));
+  inpTitleBG.addEventListener('change', ()=> commit(()=> selected.bg = inpTitleBG.value));
+  inpTitleFont.addEventListener('change', ()=> commit(()=> selected.font = inpTitleFont.value));
+}
+bindCommonInputs();
+bindTitleInputs();
+
+canvas.addEventListener('dblclick', (e)=>{
+  if(selected && selected.type==='title'){ startTitleEdit(selected); }
+});
+</script>
+</body>
+</html>
