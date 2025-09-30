@@ -1,27 +1,67 @@
 import os
-import moondream as md
+from mistralai import Mistral
 from backend.system_prompt import *
+from backend.request_models import KeywordsResponse
 
 class MBGen:
     def __init__(self, user_prompt, image=None):
-        self.model = md.vl(api_key=os.getenv("MOONDREAM"))
+        self.client = Mistral(api_key=os.getenv("MISTRAL_API"))
+        self.llm_model = "mistral-medium-2505"
+
         self.user_prompt = user_prompt
         self.image = image
 
     def generate_title(self):
-        settings = {"max-tokens": 10}
-        prompt = get_title_prompt() + "\nUser request: " + self.user_prompt
-        if self.image is not None:
-            result = self.model.query(image=self.image, question=prompt, settings=settings)
-        else:
-            result = self.model.query(question=prompt, settings=settings)
-        return result["answer"].strip().replace("\"", "")
+        chat_response = self.client.chat.complete(
+            model = self.llm_model,
+            messages = [
+                {
+                    "role": "system",
+                    "content": get_title_prompt(),
+                },
+                {
+                    "role": "user",
+                    "content": self.user_prompt,
+                }
+            ],
+            max_tokens=50
+        )
+
+        return chat_response.choices[0].message.content.strip().strip('"')
     
     def generate_keywords(self):
-        settings = {"max-tokens": 100}
-        prompt = get_generation_prompt() + "\nUser request: " + self.user_prompt
-        if self.image is not None:
-            result = self.model.query(image=self.image, question=prompt, settings=settings)
-        else:
-            result = self.model.query(question=prompt, settings=settings)
-        return result["answer"].strip().replace("\"", "")
+        user_content = [
+            {
+                "type": "text",
+                "text": self.user_prompt,
+            }
+        ]
+
+        if self.image:
+            user_content.append(
+                {
+                    "type": "image_url",
+                    "image_url": f"data:image/jpeg;base64,{self.image}",
+                }
+            )
+
+        chat_response = self.client.chat.complete(
+            model = self.llm_model,
+            messages = [
+                {
+                    "role": "system",
+                    "content": get_generation_prompt(),
+                },
+                {
+                    "role": "user",
+                    "content": user_content,
+                }
+            ],
+            response_format= {
+                "type": "json_object",
+                "schema": KeywordsResponse.model_json_schema(),
+            },
+            max_tokens=500
+        )
+
+        return chat_response.choices[0].message.content

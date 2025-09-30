@@ -53,7 +53,7 @@ def create_moodboard(input: GenerationRequest) -> KeywordsResponse:
     if input.image_url:
         MBGEN.image = input.image_url
     keywords = MBGEN.generate_keywords()
-    return KeywordsResponse(keywords=keywords.split(", "))
+    return json.loads(keywords)
 
 @app.post("/api/save_moodboard")
 def save_moodboard(moodboard: Moodboard) -> SavedMoodboardResponse:
