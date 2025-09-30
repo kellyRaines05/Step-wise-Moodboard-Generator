@@ -1,17 +1,17 @@
 from pydantic import BaseModel
-from datetime import date as Date
 
 class StatusResponse(BaseModel):
     status_code: int
 
 class GenerationRequest(BaseModel):
     prompt: str
+    image_url: str | None = None
 
 class Moodboard(BaseModel):
     title: str
     prompt: str
-    date_created: Date
     image_url: str | None = None
+    date_created: str
 
 class PastMoodboardsResponse(BaseModel):
     moodboards: list[Moodboard]
@@ -19,7 +19,7 @@ class PastMoodboardsResponse(BaseModel):
 class TitleResponse(BaseModel):
     title: str
 
-class KeyWordsResponse(BaseModel):
+class KeywordsResponse(BaseModel):
     keywords: list[str]
 
 class SavedMoodboardResponse(BaseModel):

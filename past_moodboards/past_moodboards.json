@@ -1,0 +1,8 @@
+[
+    {
+        "title": "Minimal Interior",
+        "prompt": "Create a moodboard for a minimal interior design with neutral colors and natural materials.",
+        "image_url": "http://localhost:8000/past_moodboards/moodboard.png",
+        "date_created": "2024-10-01"
+    }
+]

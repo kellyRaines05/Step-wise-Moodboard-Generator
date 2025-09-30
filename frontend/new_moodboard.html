@@ -18,17 +18,18 @@
     </body>
     
     <script>
-        async function get_title(prompt) {
+        async function get_title(prompt, image=null) {
             document.getElementById('spinner').style.display = 'block'; 
             let title_content;
             try {
                 const response = await fetch('http://localhost:8000/api/generate_title', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt })
+                    body: JSON.stringify({ prompt: prompt })
                 });
                 if (!response.ok) throw new Error('Error generating title');
-                title_content.title = await response.json();
+                content = await response.json();
+                title_content = content.title;
             } catch (error) {
                 title_content = null;
                 console.warn(error);
@@ -40,16 +41,25 @@
                 document.getElementById('Title').innerText = "New Moodboard";
             }
             document.getElementById('spinner').style.display = 'none';
+            return title_content;
         }
-        async function generate(prompt) {
+
+        async function generate_images(prompt, image=null) {
             try {
-                const response = await fetch('http://localhost:8000/api/generate_moodboard', {
+                if (image) {
+                    body = JSON.stringify({ prompt: prompt, image_url: image });
+                }
+                else {
+                    body = JSON.stringify({ prompt: prompt });
+                }
+                const response = await fetch('http://localhost:8000/api/get_images', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt })
+                    body: body
                 });
                 if (!response.ok) throw new Error('Error generating moodboard');
                 response_content = await response.json();
+                console.log(response_content.keywords);
             } catch (error) {
                 response_content = [];
             }
@@ -57,14 +67,20 @@
 
         window.onload = function() {
             const prompt = localStorage.getItem('moodboardPrompt');
+            const image = localStorage.getItem('uploadedImage');
             if (prompt) {
-                get_title(prompt);
-                // generate(prompt);
+                const title = get_title(prompt);
+                if (image) {
+                    generate_images(prompt, image);
+                } 
+                else {
+                    generate_images(prompt);
+                }
             }
-            // else {
-            //     alert('No prompt found. Please use the main page to generate a moodboard.');
-            //     window.location.href = 'homepage.html';
-            // }
+            else {
+                alert('No prompt found. Please use the main page to generate a moodboard.');
+                window.location.href = 'homepage.html';
+            }
         }
     </script>
     <style>

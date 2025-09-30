@@ -1,10 +1,11 @@
-import os, json, random
+import os, json
 from dataclasses import dataclass, asdict
 from typing import List, Tuple, Optional
 from pathlib import Path
 import numpy as np
 from PIL import Image
 import uuid
+from datetime import date
 from organizer_helpers import *
 from constants import *
 
@@ -185,9 +186,28 @@ class ImageOrganization:
             }, f, ensure_ascii=False, indent=2)
             print(f"Wrote {out_json}")
     
-    def save_moodboard(self):
+    def save_moodboard(self, prompt: str):
         out_dir = Path(self.out_dir); out_dir.mkdir(parents=True, exist_ok=True)
         id = str(uuid.uuid4())
         out_png = f"{out_dir}/{self.title}_{id}.png"
         self.canvas.save(out_png)
-        print(f"Wrote {out_png}")
+
+        out_json = f"{out_dir}/past_moodboards.json"
+        new_item = {
+            "title": self.title,
+            "prompt": prompt,
+            "image": out_png,
+            "date_created": str(date.today())
+        }
+        if os.path.exists(out_json) and os.path.getsize(out_json) > 0:
+            with open(out_json, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        else:
+            data = []
+        
+        data.append(new_item)
+       
+        with open(out_json, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        print(f"Wrote {out_png} and saved to {out_json}")

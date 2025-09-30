@@ -1,5 +1,6 @@
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import json
@@ -18,41 +19,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-mbgen = MBGen(user_prompt=None)
+IMAGE_DIR = os.path.abspath(os.path.join('past_moodboards', 'images'))
+os.makedirs(IMAGE_DIR, exist_ok=True)
+app.mount("/past_moodboards", StaticFiles(directory=IMAGE_DIR), name="past_moodboards")
+
+MBGEN = MBGen(user_prompt=None)
 
 @app.get("/api/health")
 def health_check() -> StatusResponse:
     return StatusResponse(status_code=200)
 
-@app.get("/api/past_moodboards")
+@app.get("/api/get_past_moodboards")
 def get_past_moodboards() -> PastMoodboardsResponse:
-    moodboards_dir = os.path.abspath('past_moodboards')
-    print(f"Looking for moodboards in: {moodboards_dir}")
+    past_moodboards = os.path.abspath(os.path.join('past_moodboards', 'past_moodboards.json'))
     moodboards = []
-    if os.path.exists(moodboards_dir):
-        for filename in os.listdir(moodboards_dir):
-            if filename.endswith('.json'):
-                try:
-                    with open(os.path.join(moodboards_dir, filename), 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                        past_moodboard = Moodboard(**data)
-                        moodboards.append(past_moodboard)
-                except Exception:
-                    continue
+    if os.path.exists(past_moodboards):
+        with open(past_moodboards, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            for item in data:
+                past_moodboard = Moodboard(**item)
+                moodboards.append(past_moodboard)
     return PastMoodboardsResponse(moodboards=moodboards)
 
 @app.post("/api/generate_title")
 def title_moodboard(input: GenerationRequest) -> TitleResponse:
-    mbgen.user_prompt = input.prompt
-    generated_title = mbgen.generate_title()
+    MBGEN.user_prompt = input.prompt
+    generated_title = MBGEN.generate_title()
     return TitleResponse(title=generated_title)
 
-@app.post("/api/generate_moodboard")
-def create_moodboard(prompt: GenerationRequest, title=None) -> Moodboard:
-    mbgen.user_prompt = prompt.prompt
-    keywords = mbgen.generate_keywords(image=None, user_prompt=prompt.prompt, title=title)
-    
-    return Moodboard(title=title, prompt=prompt.prompt, date_created=date.today(), image_url=None)
+@app.post("/api/get_images")
+def create_moodboard(input: GenerationRequest) -> KeywordsResponse:
+    MBGEN.user_prompt = input.prompt
+    if input.image_url:
+        MBGEN.image = input.image_url
+    keywords = MBGEN.generate_keywords()
+    return KeywordsResponse(keywords=keywords.split(", "))
 
 @app.post("/api/save_moodboard")
 def save_moodboard(moodboard: Moodboard) -> SavedMoodboardResponse:

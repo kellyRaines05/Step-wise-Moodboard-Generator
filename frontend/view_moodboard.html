@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>MBGen - View Past Moodboard</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" type="image/x-icon" href="icon.ico">
+    </head>
+
+    <body>
+        <header>
+            <div class="title" id="Title"></div>
+            <div class="subtitle" id="Date"></div>
+        </header>
+        <div class="moodboard-preview">
+            <img id="MoodboardImage" style="max-width: 80%; max-height: 80%; border-radius: 0.7rem; box-shadow: 0 2px 8px rgba(59,130,246,0.10); margin-top: 1rem;" />
+        </div>
+        <div class="subtitle" id="Prompt" style="margin-top: 1.5rem; padding: 0 1rem; text-align: center;"></div>
+        <div style="text-align: center; margin-top: 2rem;">
+            <button class="back-button" onclick="navigate_to_homepage()">Back to Homepage</button>
+        </div>
+    </body>
+
+    <script>
+        function navigate_to_homepage() {
+            window.location.href = 'homepage.html';
+        }
+
+        function loadMoodboard() {
+            const moodboard = JSON.parse(localStorage.getItem('viewMoodboard'));
+
+            const title = moodboard.title;
+            const prompt = moodboard.prompt;
+            const date = moodboard.date_created;
+            const image_url = moodboard.image_url;
+            
+            document.getElementById('Title').innerText = title || "Moodboard";
+            document.getElementById('Date').innerText = date || "";
+            document.getElementById('MoodboardImage').src = image_url || "";
+            document.getElementById('Prompt').innerText = prompt || "";
+
+        }
+
+
+        window.onload = loadMoodboard;
+    </script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(180deg, #FDF6ED 35%, #FBEDDA 100%);
+            color: #222;
+            min-height: 100vh;
+        }
+        header {
+            text-align: center;
+            padding: 2rem 1rem 1rem 1rem;
+        }
+        .title {
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color:#DE6B48;
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            color:  #45B69C;
+            margin-bottom: 2rem;
+        }
+        .moodboard-preview {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: #a5b4fc;
+            letter-spacing: 2px;
+            font-weight: 700;
+        }
+        .back-button {
+            background-color: #DE6B48;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(59,130,246,0.10);
+            transition: background-color 0.3s ease;
+        }
+        .back-button:hover {
+            background-color: #c05d3c;
+        }
+    </style>
+</html>
