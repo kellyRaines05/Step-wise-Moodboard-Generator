@@ -2,10 +2,17 @@ from pydantic import BaseModel
 
 class StatusResponse(BaseModel):
     status_code: int
+    detail: str | None = None
 
 class GenerationRequest(BaseModel):
     prompt: str
     image_url: str | None = None
+
+class ImageRequest(BaseModel):
+    keyword: str
+
+class DownloadRequest(BaseModel):
+    images: list[str]
 
 class Moodboard(BaseModel):
     title: str
@@ -21,6 +28,10 @@ class TitleResponse(BaseModel):
 
 class KeywordsResponse(BaseModel):
     keywords: list[str]
+
+class ImagesResponse(BaseModel):
+    images: list[str]
+    keyword: str
 
 class SavedMoodboardResponse(BaseModel):
     status: str

@@ -1,44 +1,14 @@
-import requests
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
-import urllib.parse
-from io import BytesIO
-from PIL import Image
+import os
+from pexels_api import API
 
-def get_images(keywords: str, time_wait: int = 10) -> list:
-    images_results = []
+def get_images(query: str):
+    api = API(os.getenv("PEXELS_API"))
 
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    driver = webdriver.Chrome(options=chrome_options)
+    page = 1
+    results_per_page = 3
+    api.search(query, page=page, results_per_page=results_per_page)
 
-    try:
-        search_query = urllib.parse.quote(keywords)
-        cosmos_url = f"https://www.cosmos.so/search/elements/{search_query}"
-        
-        driver.get(cosmos_url)
+    photos = api.get_entries()
 
-        wait = WebDriverWait(driver, timeout=time_wait)
-        wait.until(EC.presence_of_all_elements_located((By.TAG_NAME, "img")))
-        image_elements = driver.find_elements(By.TAG_NAME, "img")
-        
-        for img in image_elements:
-            img_src = img.get_attribute('src')
-            if img_src and img_src.startswith('http'):
-                try:
-                    response = requests.get(img_src, timeout=time_wait)
-                    image_data = response.content
-                    image_stream = BytesIO(image_data)
-                    image_object = Image.open(image_stream)
-                    images_results.append(image_object)
-                except requests.exceptions.RequestException as e:
-                    print(f"Failed to fetch image data from {img_src}: {e}")
-                except Exception as e:
-                    print(f"Failed to process image from {img_src}: {e}")
-    finally:
-        driver.quit()
-    
-    return images_results
+    image_urls = [photo.original for photo in photos]
+    return image_urls

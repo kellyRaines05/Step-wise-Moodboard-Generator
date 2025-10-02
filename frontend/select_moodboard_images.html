@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>MBGen - New Moodboard</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" type="image/x-icon" href="icon.ico">
+    </head>
+    <body>
+        <header>
+            <div class="title" id="Title"></div>
+            <div class="subtitle" id="Subtitle" style="display:none;">Select the images for your moodboard!</div>
+        </header>
+        <div id="spinner" style="display:none; text-align:center; margin-top:2rem;">
+            <div class="title">DOWNLOADING THE MODEL</div>
+            <div class="subtitle">This may take a few minutes... do not reload the page.</div>
+            <div class="loader"></div>
+        </div>
+
+        <div id="image-gallery"></div>
+        <div class="continue-button-container">
+            <button class="continue-button" id="continue-button" onclick="handleSubmit()">Continue</button>
+        </div>
+        <div id="results"></div>
+        <div id="results"></div>
+
+        <div id="min-selection-modal" class="modal-overlay" style="display:none;">
+            <div class="modal-content">
+                <span class="modal-close-button" onclick="closeModal()">&times;</span>
+                <h3 class="modal-title">Selection Required</h3>
+                <p class="modal-message">
+                    Please select at least 3 images to create your moodboard.
+                </p>
+                <button class="modal-ok-button" onclick="closeModal()">Got it</button>
+            </div>
+        </div>
+    </body>
+    
+    <script>
+        const selectedImages = [];
+        let title_content;
+
+        async function get_title(prompt, image=null) {
+            document.getElementById('spinner').style.display = 'block';
+            try {
+                const response = await fetch('http://localhost:8000/api/generate_title', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+                if (!response.ok) throw new Error('Error generating title');
+                content = await response.json();
+                title_content = content.title;
+            } catch (error) {
+                title_content = null;
+                console.warn(error);
+            }
+            if (title_content) {
+                document.getElementById('Title').innerText = title_content
+            }
+            else {
+                document.getElementById('Title').innerText = "New Moodboard";
+            }
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('Subtitle').style.display = 'block';
+            return title_content;
+        }
+
+        async function generate_keywords(prompt, image=null) {
+            let keywords;
+            try {
+                const response = await fetch('http://localhost:8000/api/get_keywords', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt, image_url: image })
+                });
+                if (!response.ok) throw new Error('Error generating keywords');
+                response_content = await response.json();
+                keywords = response_content.keywords
+            } catch (error) {
+                keywords = [];
+            }
+            return keywords
+        }
+
+        async function get_images(keyword) {
+            let images;
+            try {
+                const response = await fetch('http://localhost:8000/api/get_images', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keyword: keyword })
+                });
+                if (!response.ok) throw new Error('Error getting images');
+                response_content = await response.json();
+                images = response_content.images
+            } catch (error) {
+                images = [];
+            }
+            return images
+        }
+
+        async function generate_images(prompt, image) {
+            const keywords = await generate_keywords(prompt, image)
+
+            for (const key of keywords) {
+                const images = await get_images(key)
+                images.forEach(image => {
+                    display_images(image, key)
+                })
+            }
+
+            document.getElementById('continue-button').style.display = 'inline-block';
+        }
+
+        function display_images(imageURL, keyword) {
+            const gallery = document.getElementById('image-gallery');
+            const card = document.createElement('div');
+            card.className = 'image-card'; 
+            card.dataset.url = imageURL;
+            
+            const img = document.createElement('img');
+            img.src = imageURL;
+            img.alt = keyword + ' related image';
+
+            card.appendChild(img);
+            gallery.appendChild(card);
+            
+            selectedImages.push({
+                url: imageURL,
+                selected: false 
+            });
+
+            card.addEventListener('click', () => {
+                card.classList.toggle('selected');
+                const isSelected = card.classList.contains('selected');
+                const imageIndex = selectedImages.findIndex(item => item.url === imageURL);
+                if (imageIndex !== -1) {
+                    selectedImages[imageIndex].selected = isSelected;
+                }
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('min-selection-modal').style.display = 'none';
+        }
+
+        async function handleSubmit() {
+            const imagesToDownload = selectedImages
+                .filter(item => item.selected)
+                .map(item => item.url);
+
+            if (imagesToDownload.length < 3) {
+                document.getElementById('min-selection-modal').style.display = 'flex';
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/download_images', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ images: imagesToDownload })
+                });
+                if (!response.ok) throw new Error('Error downloading images');
+            } catch (error) {
+                console.warn(error)
+            }
+            
+            try {
+                const response = await fetch("http://localhost:8000/api/organize_moodboard", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ images: imagesToDownload })
+                });
+                if (!response.ok) throw new Error('Error organizing moodboard');
+            } catch (error) {
+                console.warn(error)
+            }
+            
+            window.location.href = "new_moodboard.html" // navigate to the generated html!
+        }
+
+        window.onload = function() {
+            const prompt = localStorage.getItem('moodboardPrompt');
+            const image = localStorage.getItem('uploadedImage');
+            if (prompt) {
+                const title = get_title(prompt);
+                if (image) {
+                    generate_images(prompt, image);
+                } 
+                else {
+                    generate_images(prompt);
+                }
+            }
+            else {
+                alert('No prompt found. Please use the main page to generate a moodboard.');
+                window.location.href = 'homepage.html';
+            }
+        }
+    </script>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(180deg, #FDF6ED 35%, #FBEDDA 100%);
+            color: #222;
+            min-height: 100vh;
+        }
+        header {
+            text-align: center;
+            padding: 2rem 1rem 1rem 1rem;
+        }
+        .title {
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color:#DE6B48;
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            color:  #45B69C;
+            margin-bottom: 2rem;
+        }
+        .loader {
+          border: 8px solid #f3f3f3;
+          border-top: 8px solid #DE6B48;
+          border-radius: 50%;
+          width: 48px;
+          height: 48px;
+          animation: spin 1s linear infinite;
+          margin: 0 auto;
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg);}
+          100% { transform: rotate(360deg);}
+        }
+        #image-gallery {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            gap: 20px;
+            padding: 20px 0;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .image-card {
+            width: 180px;
+            height: 180px;
+            flex-shrink: 0;
+            padding: 5px;
+            border: 3px solid #ddd;
+            cursor: pointer;
+            overflow: hidden;
+            position: relative;
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+        .image-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .image-card.selected {
+            border-color: #DE6B48;
+            box-shadow: 0 0 10px #C05D3C;
+        }
+        .continue-button-container {
+            text-align: right;
+            max-width: 1200px;
+            margin: 20px auto 40px auto;
+            padding: 0 20px;
+        }
+        .continue-button {
+            display: none;
+            background: linear-gradient(150deg, #3EA38B 35%, #328572 100%);
+            color: #fff;
+            border: none;
+            border-radius: 0.7rem;
+            padding: 0.9rem 1.8rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 2px 8px rgba(59,130,246,0.10);
+        }
+        .continue-button:hover {
+            background: linear-gradient(150deg, #328572 35%, #276859 100%);
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); /* Dark semi-transparent background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Ensure it's on top of everything */
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            position: relative;
+        }
+        .modal-close-button {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 24px;
+            font-weight: 200;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .modal-title {
+            color: #DE6B48;
+            font-size: 1.8rem;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .modal-message {
+            color: #222;
+            margin-bottom: 25px;
+        }
+        .modal-ok-button {
+            background: #DE6B48;
+            color: #fff;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.7rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .modal-ok-button:hover {
+            background: #C05D3C;
+        }
+    </style>
+</html>

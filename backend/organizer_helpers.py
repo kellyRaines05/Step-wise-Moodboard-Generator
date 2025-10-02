@@ -2,7 +2,7 @@ import math, random
 from typing import List, Tuple
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from constants import *
+from backend.constants import *
 
 def load_and_thumb(path: str, max_side: int) -> Image.Image:
     im = Image.open(path).convert("RGBA")
