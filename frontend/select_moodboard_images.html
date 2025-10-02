@@ -166,11 +166,12 @@
                 console.warn(error)
             }
             
+            // TODO: test from here down
             try {
                 const response = await fetch("http://localhost:8000/api/organize_moodboard", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ images: imagesToDownload })
+                    body: JSON.stringify({ title: title_content })
                 });
                 if (!response.ok) throw new Error('Error organizing moodboard');
             } catch (error) {
