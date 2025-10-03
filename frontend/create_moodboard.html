@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Interactive Moodboard (Inspector Panel + Shapes)</title>
+<title>Interactive Moodboard (Zoom-aware, Inspector-safe, Save)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   :root { --ui:#2b6cb0; --panel:#ffffff; --bg:#f3f3f3; --border:#ddd; }
@@ -13,8 +13,19 @@
   }
   .hint { color:#666; font-size:13px; }
   .layout { display:flex; align-items:flex-start; gap:12px; padding:12px; }
-  .canvasWrap { flex: 1 1 auto; display:flex; justify-content:center; }
-  canvas { background:#fff; border:1px solid var(--border); }
+  .canvasWrap {
+    flex: 1 1 auto; display:flex; justify-content:flex-start;
+    overflow:auto; /* allow scrolling when zoom changes */
+    background: #fafafa; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px;
+    overscroll-behavior: contain; /* prevent back/forward swipe chaining */
+    touch-action: none; /* stop touch browser gestures over the canvas area */
+  }
+  .canvasInner {
+    position: relative;
+    transform-origin: top left;
+  }
+  canvas { background:#fff; border:1px solid var(--border); display:block; }
   /* Inspector panel */
   .panel {
     width: 320px; flex: 0 0 320px; background: var(--panel);
@@ -22,7 +33,13 @@
     position:sticky; top:64px; align-self:flex-start; max-height: calc(100vh - 80px); overflow:auto;
     border-radius: 8px;
   }
-  .panel header { padding:10px 12px; border-bottom:1px solid var(--border); font-weight:600; }
+  .panel header {
+    padding:10px 12px; border-bottom:1px solid var(--border); font-weight:600;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .panel .close {
+    border:none; background:transparent; font-size:18px; line-height:1; cursor:pointer; color:#666;
+  }
   .panel section { padding:10px 12px; border-bottom:1px solid var(--border); }
   .panel .row { display:flex; align-items:center; gap:8px; margin:8px 0; }
   .panel label { width: 110px; font-size:13px; color:#444; }
@@ -36,7 +53,7 @@
   button { padding:6px 10px; border:1px solid #ccc; background:#fff; border-radius:6px; cursor:pointer; }
   button:active { transform: translateY(1px); }
 
-  /* Title editor (still available on double-click) */
+  /* Title editor (optional inline) */
   #titleEditor {
     position:absolute; z-index:20; display:none; border:1px solid var(--ui);
     box-shadow:0 2px 10px rgba(0,0,0,.12); padding:6px 10px; background:#fff; border-radius:6px;
@@ -58,20 +75,36 @@
 <div class="topbar">
   <label>Load JSON <input type="file" id="jsonInput" accept=".json"></label>
   <button id="fitBtn">Fit to JSON Canvas</button>
+  <button id="toggleInspectorBtn">Toggle Inspector</button>
   <button id="undoBtn" title="Ctrl+Z">Undo</button>
   <button id="redoBtn" title="Ctrl+Y / Ctrl+Shift+Z">Redo</button>
-  <span class="hint">Click an object to edit • Drag to move • Drag corners to resize • Top circle to rotate • Ctrl+Z to undo</span>
+
+  <!-- Zoom control -->
+  <label style="display:flex; align-items:center; gap:6px;">
+    Zoom
+    <input type="range" id="zoomRange" min="40" max="200" value="90" />
+    <span id="zoomLabel">90%</span>
+  </label>
+
+  <button id="saveBtn">Save (PNG + JSON)</button>
+
+  <span class="hint">Click to select • Drag to move • Drag corners to resize • Top circle to rotate • Ctrl+Z to undo</span>
 </div>
 
 <div class="layout">
-  <div class="canvasWrap">
-    <canvas id="board" width="1200" height="800"></canvas>
-    <input id="titleEditor" />
+  <div class="canvasWrap" id="canvasWrap">
+    <div class="canvasInner" id="canvasInner">
+      <canvas id="board" width="1200" height="800"></canvas>
+      <input id="titleEditor" />
+    </div>
   </div>
 
   <!-- Inspector panel -->
   <aside class="panel" id="inspector" hidden>
-    <header id="panelTitle">Inspector</header>
+    <header>
+      <div id="panelTitle">Inspector</div>
+      <button class="close" id="closeInspectorBtn" title="Close">&times;</button>
+    </header>
     <section id="commonSection">
       <div class="row"><label>Type</label><div id="objType" class="muted">—</div></div>
       <div class="row"><label>Filename</label><div id="objFilename" class="muted">—</div></div>
@@ -140,6 +173,63 @@ let selected = null;
 let dragMode = null;    // 'move' | 'scale' | 'rotate' | null
 let lastMouse = {x:0,y:0};
 let jsonCanvasW = canvas.width, jsonCanvasH = canvas.height;
+
+/* ================= Zoom (visual only) ================= */
+const canvasWrap = document.getElementById('canvasWrap');
+const canvasInner = document.getElementById('canvasInner');
+const zoomRange = document.getElementById('zoomRange');
+const zoomLabel = document.getElementById('zoomLabel');
+let currentZoom = +zoomRange.value / 100;
+
+function applyZoom(z) {
+  currentZoom = z;
+  canvasInner.style.transform = `scale(${z})`;
+  zoomLabel.textContent = `${Math.round(z*100)}%`;
+}
+zoomRange.addEventListener('input', () => applyZoom(+zoomRange.value/100));
+applyZoom(currentZoom);
+
+/* Fit zoom when inspector opens/closes (so whole board is more likely visible) */
+function fitZoomForLayout(inspectorOpen){
+  // compute max scale that fits canvas width into visible wrap (minus panel if open)
+  const wrapRect = canvasWrap.getBoundingClientRect();
+  const margin = 24; // padding/scrollbar safety
+  const maxZ = Math.min((wrapRect.width - margin) / canvas.width, (window.innerHeight - 180) / canvas.height);
+  const target = inspectorOpen ? Math.min(0.95, Math.max(0.45, maxZ)) : Math.min(1.0, Math.max(0.5, maxZ));
+  const z = isFinite(target) ? target : currentZoom;
+  const pct = Math.round(z*100);
+  zoomRange.value = String(pct);
+  applyZoom(z);
+}
+
+/* ================= Inspector Show/Hide + Safe Keys ================= */
+const inspector = document.getElementById('inspector');
+const closeInspectorBtn = document.getElementById('closeInspectorBtn');
+const toggleInspectorBtn = document.getElementById('toggleInspectorBtn');
+
+function showInspector(show){
+  inspector.hidden = !show;
+  fitZoomForLayout(show);
+}
+closeInspectorBtn.addEventListener('click', ()=> showInspector(false));
+toggleInspectorBtn.addEventListener('click', ()=> showInspector(inspector.hidden));
+
+/* ================= Prevent horizontal two-finger swipe/back ================= */
+/* Stop horizontal wheel gestures when pointer is over the canvas area */
+canvasWrap.addEventListener('wheel', (e) => {
+  // If horizontal intent is strong, prevent default to avoid browser side-swipe/back gesture
+  if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+/* Also pin history so accidental swipe back doesn’t leave the page */
+(function guardHistory(){
+  try {
+    history.pushState(null, '', location.href);
+    window.addEventListener('popstate', () => history.pushState(null, '', location.href));
+  } catch(_) {}
+})();
 
 /* ================= Undo / Redo ================= */
 const undoStack = [];
@@ -310,14 +400,22 @@ function handlePoints(obj){
 }
 function rotationHandleLocal(obj){ return {x:0, y:-(obj.h/2+30)}; }
 
-/* ================= Hit Testing ================= */
-function hitTest(x,y){
+/* ================= Hit Testing (ZOOM AWARE) ================= */
+function getCanvasMouse(e){
+  const rect = canvas.getBoundingClientRect();
+  // Pointer deltas must divide by currentZoom to return true canvas coordinates
+  const x = (e.clientX - rect.left) / currentZoom;
+  const y = (e.clientY - rect.top) / currentZoom;
+  return {x,y};
+}
+function hitTestScreen(e){
+  const {x,y} = getCanvasMouse(e);
   for(let i=objects.length-1;i>=0;i--){
     const obj=objects[i];
     if (obj.selectable === false) continue;
 
     const rLoc=rotationHandleLocal(obj), rScr=toScreen(obj,rLoc.x,rLoc.y);
-    if((x-rScr.x)**2+(y-rScr.y)**2 <= 12**2) return {obj,hit:{type:'rotate'}};
+    if((x-rScr.x)**2+(y-rScr.y)**2 <= (12)**2) return {obj,hit:{type:'rotate'}};
 
     const pts=handlePoints(obj).map(p=>toScreen(obj,p.x,p.y));
     for(let h=0;h<pts.length;h++){
@@ -333,36 +431,57 @@ function hitTest(x,y){
 
 /* ================= Interaction ================= */
 canvas.addEventListener('mousedown',(e)=>{
-  const r=canvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
-  const {obj,hit}=hitTest(x,y);
+  const {obj,hit}=hitTestScreen(e);
   pushUndo();
-  selected=obj; dragMode=hit?hit.type:null; lastMouse={x,y};
+  selected=obj; dragMode=hit?hit.type:null; lastMouse=getCanvasMouse(e);
 
   if(selected){ const i=objects.indexOf(selected); objects.splice(i,1); objects.push(selected); }
-  // show panel for new selection
   showInspector(!!selected);
   draw();
 });
 
 window.addEventListener('mousemove',(e)=>{
   if(!selected || !dragMode) return;
-  const r=canvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
+  const pt = getCanvasMouse(e);
 
-  if(dragMode==='move'){ selected.x += x-lastMouse.x; selected.y += y-lastMouse.y; }
-  else if(dragMode==='rotate'){ const cx=selected.x+selected.w/2, cy=selected.y+selected.h/2; selected.angle=Math.atan2(y-cy,x-cx)-Math.PI/2; }
-  else if(dragMode==='scale'){ const lp=toLocal(selected,x,y); const s=Math.max(0.05, Math.max(Math.abs(lp.x)/(selected.w/2), Math.abs(lp.y)/(selected.h/2))); selected.scale=s; }
+  if(dragMode==='move'){ selected.x += pt.x-lastMouse.x; selected.y += pt.y-lastMouse.y; }
+  else if(dragMode==='rotate'){
+    const cx=selected.x+selected.w/2, cy=selected.y+selected.h/2;
+    selected.angle=Math.atan2(pt.y-cy,pt.x-cx)-Math.PI/2;
+  }
+  else if(dragMode==='scale'){
+    const lp=toLocal(selected, pt.x, pt.y);
+    const s=Math.max(0.05, Math.max(Math.abs(lp.x)/(selected.w/2), Math.abs(lp.y)/(selected.h/2)));
+    selected.scale=s;
+  }
 
-  lastMouse={x,y}; draw();
+  lastMouse=pt; draw();
 });
 
 window.addEventListener('mouseup',()=>{ dragMode=null; });
 
+/* ==================== Prevent inspector from triggering canvas hotkeys ==================== */
+function isEditingUI(e) {
+  const t = e && e.target ? e.target : document.activeElement;
+  if (!t) return false;
+  if (t === titleEditor) return true;
+  if (t.isContentEditable) return true;
+  const tag = (t.tagName || '').toUpperCase();
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (t.closest && t.closest('#inspector')) return true; // anything inside the inspector
+  return false;
+}
+
+/* Global key handling (guarded) */
 document.addEventListener('keydown',(e)=>{
+  if (isEditingUI(e)) return;
+
   if((e.ctrlKey||e.metaKey) && !e.shiftKey && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); showInspector(!!selected); return; }
   if((e.ctrlKey||e.metaKey) && (e.key.toLowerCase()==='y' || (e.shiftKey && e.key.toLowerCase()==='z'))){ e.preventDefault(); redo(); showInspector(!!selected); return; }
 
   if(!selected) return;
   if(e.key==='Delete' || e.key==='Backspace'){
+    e.preventDefault();
     pushUndo();
     objects = objects.filter(o=>o!==selected);
     selected = null;
@@ -371,16 +490,21 @@ document.addEventListener('keydown',(e)=>{
   }
 });
 
-/* ================= Title Inline (still supported) ================= */
+/* Extra safety: keep key events inside inspector from bubbling up */
+document.getElementById('inspector').addEventListener('keydown', (e) => {
+  e.stopPropagation();
+});
+
+/* ================= Title Inline (optional) ================= */
 function startTitleEdit(obj){
   if (obj.type!=='title') return;
   const pts=[toScreen(obj,-obj.w/2,-obj.h/2),toScreen(obj,obj.w/2,-obj.h/2),toScreen(obj,obj.w/2,obj.h/2),toScreen(obj,-obj.w/2,obj.h/2)];
   const minX=Math.min(...pts.map(p=>p.x)), maxX=Math.max(...pts.map(p=>p.x));
   const minY=Math.min(...pts.map(p=>p.y)), maxY=Math.max(...pts.map(p=>p.y));
-  titleEditor.style.left=(minX+window.scrollX+4)+'px';
-  titleEditor.style.top =(minY+window.scrollY+4)+'px';
-  titleEditor.style.width =Math.max(50,(maxX-minX)-8)+'px';
-  titleEditor.style.height=Math.max(24,(maxY-minY)-8)+'px';
+  titleEditor.style.left=(minX*currentZoom+window.scrollX+4)+'px';
+  titleEditor.style.top =(minY*currentZoom+window.scrollY+4)+'px';
+  titleEditor.style.width =Math.max(50,(maxX-minX)*currentZoom-8)+'px';
+  titleEditor.style.height=Math.max(24,(maxY-minY)*currentZoom-8)+'px';
   titleEditor.value=obj.text||''; titleEditor.style.display='block'; titleEditor.focus(); titleEditor.select();
 
   const commit=()=>{ pushUndo(); obj.text=titleEditor.value; titleEditor.style.display='none'; titleEditor.onblur=null; titleEditor.onkeydown=null; draw(); updateInspectorFields(); };
@@ -397,7 +521,7 @@ document.getElementById('jsonInput').addEventListener('change', async (e)=>{
 
   objects = [];
 
-  // Palette first (non-selectable)
+  // Palette (non-selectable)
   if (data.palette && Array.isArray(data.palette.colors) && data.palette.strip) {
     const s = data.palette.strip;
     objects.push({
@@ -441,18 +565,40 @@ document.getElementById('jsonInput').addEventListener('change', async (e)=>{
     }
   }
 
-  // reset selection + inspector
   selected = null;
-  showInspector(false);
-
+  showInspector(false); // will also set zoom comfortable for full view
   undoStack.length=0; redoStack.length=0; pushUndo(); draw();
 });
 
 /* ================= Fit button ================= */
-document.getElementById('fitBtn').addEventListener('click', ()=>{ canvas.width=jsonCanvasW; canvas.height=jsonCanvasH; draw(); });
+document.getElementById('fitBtn').addEventListener('click', ()=>{
+  canvas.width=jsonCanvasW; canvas.height=jsonCanvasH;
+  fitZoomForLayout(!inspector.hidden);
+  draw();
+});
+
+/* ================= Save (PNG + JSON) ================= */
+document.getElementById('saveBtn').addEventListener('click', ()=>{
+  // Save JSON snapshot
+  const data = snapshot();
+  const jsonBlob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const jsonUrl = URL.createObjectURL(jsonBlob);
+  const jLink = document.createElement('a');
+  jLink.href = jsonUrl;
+  jLink.download = 'moodboard.json';
+  document.body.appendChild(jLink); jLink.click(); jLink.remove();
+  URL.revokeObjectURL(jsonUrl);
+
+  // Save PNG render
+  // Temporarily clear transforms by reading the actual canvas pixels
+  const pngUrl = canvas.toDataURL('image/png');
+  const pLink = document.createElement('a');
+  pLink.href = pngUrl;
+  pLink.download = 'moodboard.png';
+  document.body.appendChild(pLink); pLink.click(); pLink.remove();
+});
 
 /* ================= Inspector Panel Logic ================= */
-const inspector = document.getElementById('inspector');
 const panelTitle = document.getElementById('panelTitle');
 const objTypeEl = document.getElementById('objType');
 const objFilenameEl = document.getElementById('objFilename');
@@ -473,22 +619,19 @@ const inpTitleColor = document.getElementById('inpTitleColor');
 const inpTitleBG = document.getElementById('inpTitleBG');
 const inpTitleFont = document.getElementById('inpTitleFont');
 
-function showInspector(show){ inspector.hidden = !show; }
 function updateInspectorFields(){
-  if(!selected){ return; }
-  // Header
+  if(!selected || inspector.hidden) return;
   panelTitle.textContent = `Inspector — ${selected.type}`;
   objTypeEl.textContent = selected.type;
   objFilenameEl.textContent = selected.filename || '—';
 
-  // Common
   inpX.value = Math.round(selected.x);
   inpY.value = Math.round(selected.y);
   inpW.value = Math.round(selected.w);
   inpH.value = Math.round(selected.h);
   inpScale.value = Number(selected.scale.toFixed(2));
   inpRot.value = Math.round(selected.angle * 180 / Math.PI);
-  // Shape visible only for image and title? Keep for image; title fixed rect
+
   if (selected.type === 'image') {
     document.getElementById('shapeRow').style.display = '';
     inpShape.value = (selected.shape || 'rectangle');
@@ -496,22 +639,20 @@ function updateInspectorFields(){
     document.getElementById('shapeRow').style.display = 'none';
   }
 
-  // Sections
   titleSection.hidden = selected.type !== 'title';
   paletteSection.hidden = selected.type !== 'palette';
 
   if (selected.type === 'title') {
     inpTitleText.value = selected.text || '';
-    // Convert rgba/hex as needed; default hex if missing
     inpTitleColor.value = toHexColor(selected.color || '#1e1e1e');
     inpTitleBG.value = toHexColor(selected.bg || '#ece4dc');
     inpTitleFont.value = selected.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
   }
 }
+
 function toHexColor(v) {
   if (!v) return '#000000';
   if (v.startsWith('#')) return v;
-  // try rgb(r,g,b)
   const m = v.match(/rgb\s*\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)\s*\)/i);
   if (m) {
     const r = (+m[1]).toString(16).padStart(2,'0');
@@ -523,7 +664,6 @@ function toHexColor(v) {
 }
 function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
 
-// Bind inputs → selected object (with undo)
 function bindCommonInputs(){
   function commit(fn){ if(!selected) return; pushUndo(); fn(); draw(); }
   inpX.addEventListener('change', ()=> commit(()=> selected.x = +inpX.value));
@@ -544,9 +684,6 @@ function bindTitleInputs(){
 bindCommonInputs();
 bindTitleInputs();
 
-canvas.addEventListener('dblclick', (e)=>{
-  if(selected && selected.type==='title'){ startTitleEdit(selected); }
-});
 </script>
 </body>
 </html>
