@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Interactive Moodboard (Zoom-aware, Inspector-safe, Save)</title>
+<title>Interactive Moodboard (Zoom-aware, Inspector-safe, Save + BG Color)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   :root { --ui:#2b6cb0; --panel:#ffffff; --bg:#f3f3f3; --border:#ddd; }
@@ -15,18 +15,15 @@
   .layout { display:flex; align-items:flex-start; gap:12px; padding:12px; }
   .canvasWrap {
     flex: 1 1 auto; display:flex; justify-content:flex-start;
-    overflow:auto; /* allow scrolling when zoom changes */
+    overflow:auto;
     background: #fafafa; border: 1px solid var(--border); border-radius: 8px;
     padding: 8px;
-    overscroll-behavior: contain; /* prevent back/forward swipe chaining */
-    touch-action: none; /* stop touch browser gestures over the canvas area */
+    overscroll-behavior: contain;
+    touch-action: none;
   }
-  .canvasInner {
-    position: relative;
-    transform-origin: top left;
-  }
+  .canvasInner { position: relative; transform-origin: top left; }
   canvas { background:#fff; border:1px solid var(--border); display:block; }
-  /* Inspector panel */
+
   .panel {
     width: 320px; flex: 0 0 320px; background: var(--panel);
     border-left:1px solid var(--border); box-shadow:0 1px 6px rgba(0,0,0,.06);
@@ -53,17 +50,15 @@
   button { padding:6px 10px; border:1px solid #ccc; background:#fff; border-radius:6px; cursor:pointer; }
   button:active { transform: translateY(1px); }
 
-  /* Title editor (optional inline) */
   #titleEditor {
     position:absolute; z-index:20; display:none; border:1px solid var(--ui);
     box-shadow:0 2px 10px rgba(0,0,0,.12); padding:6px 10px; background:#fff; border-radius:6px;
     font: 24px "MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif; outline:none;
   }
 
-  /* Optional TTF webfont wiring */
   @font-face {
     font-family: 'MoodboardTitle';
-    src: url('../fonts/BradleyHandITC.ttf') format('truetype'); /* will silently fail if file not present */
+    src: url('../fonts/BradleyHandITC.ttf') format('truetype');
     font-weight: normal;
     font-style: normal;
     font-display: swap;
@@ -79,11 +74,16 @@
   <button id="undoBtn" title="Ctrl+Z">Undo</button>
   <button id="redoBtn" title="Ctrl+Y / Ctrl+Shift+Z">Redo</button>
 
-  <!-- Zoom control -->
   <label style="display:flex; align-items:center; gap:6px;">
     Zoom
     <input type="range" id="zoomRange" min="40" max="200" value="90" />
     <span id="zoomLabel">90%</span>
+  </label>
+
+  <!-- NEW: canvas background color picker -->
+  <label style="display:flex; align-items:center; gap:6px;">
+    Background
+    <input type="color" id="bgPicker" value="#ffffff">
   </label>
 
   <button id="saveBtn">Save (PNG + JSON)</button>
@@ -99,7 +99,6 @@
     </div>
   </div>
 
-  <!-- Inspector panel -->
   <aside class="panel" id="inspector" hidden>
     <header>
       <div id="panelTitle">Inspector</div>
@@ -108,24 +107,12 @@
     <section id="commonSection">
       <div class="row"><label>Type</label><div id="objType" class="muted">—</div></div>
       <div class="row"><label>Filename</label><div id="objFilename" class="muted">—</div></div>
-      <div class="row">
-        <label>X</label><input type="number" id="inpX" step="1">
-      </div>
-      <div class="row">
-        <label>Y</label><input type="number" id="inpY" step="1">
-      </div>
-      <div class="row">
-        <label>Width</label><input type="number" id="inpW" step="1" min="1">
-      </div>
-      <div class="row">
-        <label>Height</label><input type="number" id="inpH" step="1" min="1">
-      </div>
-      <div class="row">
-        <label>Scale</label><input type="number" id="inpScale" step="0.01" min="0.05">
-      </div>
-      <div class="row">
-        <label>Rotation°</label><input type="number" id="inpRot" step="1">
-      </div>
+      <div class="row"><label>X</label><input type="number" id="inpX" step="1"></div>
+      <div class="row"><label>Y</label><input type="number" id="inpY" step="1"></div>
+      <div class="row"><label>Width</label><input type="number" id="inpW" step="1" min="1"></div>
+      <div class="row"><label>Height</label><input type="number" id="inpH" step="1" min="1"></div>
+      <div class="row"><label>Scale</label><input type="number" id="inpScale" step="0.01" min="0.05"></div>
+      <div class="row"><label>Rotation°</label><input type="number" id="inpRot" step="1"></div>
       <div class="row" id="shapeRow">
         <label>Mask Shape</label>
         <select id="inpShape">
@@ -137,17 +124,10 @@
     </section>
 
     <section id="titleSection" hidden>
-      <div class="row">
-        <label>Title Text</label><input type="text" id="inpTitleText" placeholder="Enter title...">
-      </div>
-      <div class="row">
-        <label>Text Color</label><input type="color" id="inpTitleColor">
-      </div>
-      <div class="row">
-        <label>Badge Color</label><input type="color" id="inpTitleBG">
-      </div>
-      <div class="row">
-        <label>Font Family</label>
+      <div class="row"><label>Title Text</label><input type="text" id="inpTitleText" placeholder="Enter title..."></div>
+      <div class="row"><label>Text Color</label><input type="color" id="inpTitleColor"></div>
+      <div class="row"><label>Badge Color</label><input type="color" id="inpTitleBG"></div>
+      <div class="row"><label>Font Family</label>
         <input type="text" id="inpTitleFont" placeholder='"MoodboardTitle", "Bradley Hand", Segoe UI, Arial'>
       </div>
       <div class="row">
@@ -174,6 +154,11 @@ let dragMode = null;    // 'move' | 'scale' | 'rotate' | null
 let lastMouse = {x:0,y:0};
 let jsonCanvasW = canvas.width, jsonCanvasH = canvas.height;
 
+/* ===== NEW: canvas background color kept in state and controlled by picker ===== */
+const bgPicker = document.getElementById('bgPicker');
+let canvasBg = '#ffffff';
+bgPicker.addEventListener('input', () => { canvasBg = bgPicker.value; draw(); });
+
 /* ================= Zoom (visual only) ================= */
 const canvasWrap = document.getElementById('canvasWrap');
 const canvasInner = document.getElementById('canvasInner');
@@ -189,11 +174,9 @@ function applyZoom(z) {
 zoomRange.addEventListener('input', () => applyZoom(+zoomRange.value/100));
 applyZoom(currentZoom);
 
-/* Fit zoom when inspector opens/closes (so whole board is more likely visible) */
 function fitZoomForLayout(inspectorOpen){
-  // compute max scale that fits canvas width into visible wrap (minus panel if open)
   const wrapRect = canvasWrap.getBoundingClientRect();
-  const margin = 24; // padding/scrollbar safety
+  const margin = 24;
   const maxZ = Math.min((wrapRect.width - margin) / canvas.width, (window.innerHeight - 180) / canvas.height);
   const target = inspectorOpen ? Math.min(0.95, Math.max(0.45, maxZ)) : Math.min(1.0, Math.max(0.5, maxZ));
   const z = isFinite(target) ? target : currentZoom;
@@ -215,15 +198,10 @@ closeInspectorBtn.addEventListener('click', ()=> showInspector(false));
 toggleInspectorBtn.addEventListener('click', ()=> showInspector(inspector.hidden));
 
 /* ================= Prevent horizontal two-finger swipe/back ================= */
-/* Stop horizontal wheel gestures when pointer is over the canvas area */
 canvasWrap.addEventListener('wheel', (e) => {
-  // If horizontal intent is strong, prevent default to avoid browser side-swipe/back gesture
-  if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-    e.preventDefault();
-  }
+  if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) e.preventDefault();
 }, { passive: false });
 
-/* Also pin history so accidental swipe back doesn’t leave the page */
 (function guardHistory(){
   try {
     history.pushState(null, '', location.href);
@@ -236,7 +214,7 @@ const undoStack = [];
 const redoStack = [];
 function snapshot() {
   return {
-    canvas: {w: canvas.width, h: canvas.height},
+    canvas: { w: canvas.width, h: canvas.height, bg: canvasBg }, // keep background
     objects: objects.map(o => ({
       id: o.id, type: o.type,
       filename: o.filename || null,
@@ -274,6 +252,8 @@ function restore(state){
   objects = state.objects.map(so=>byId.get(so.id)).filter(Boolean);
   selected = objects.find(o=>o.id===state.selectedId) || null;
   canvas.width = state.canvas.w; canvas.height = state.canvas.h;
+  canvasBg = state.canvas.bg || '#ffffff';
+  if (bgPicker) bgPicker.value = canvasBg;
   draw();
 }
 function undo(){ if(!undoStack.length) return; const cur=snapshot(); const prev=undoStack.pop(); redoStack.push(cur); restore(prev); }
@@ -312,7 +292,12 @@ function clipByShape(obj){
 
 /* ================= Drawing ================= */
 function draw(){
+  // Clear & fill the background first
   ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.save();
+  ctx.fillStyle = canvasBg || '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
 
   for(const obj of objects){
     ctx.save();
@@ -356,7 +341,6 @@ function draw(){
       ctx.fillText(obj.text || '', 0, 0);
     }
 
-    // selection UI
     const selectable = obj.selectable !== false;
     if(selectable && obj===selected){
       ctx.lineWidth = 2/obj.scale;
@@ -376,7 +360,6 @@ function draw(){
     ctx.restore();
   }
 
-  // update inspector if visible
   updateInspectorFields();
 }
 function roundRect(ctx,x,y,w,h,r){
@@ -403,7 +386,6 @@ function rotationHandleLocal(obj){ return {x:0, y:-(obj.h/2+30)}; }
 /* ================= Hit Testing (ZOOM AWARE) ================= */
 function getCanvasMouse(e){
   const rect = canvas.getBoundingClientRect();
-  // Pointer deltas must divide by currentZoom to return true canvas coordinates
   const x = (e.clientX - rect.left) / currentZoom;
   const y = (e.clientY - rect.top) / currentZoom;
   return {x,y};
@@ -468,11 +450,10 @@ function isEditingUI(e) {
   if (t.isContentEditable) return true;
   const tag = (t.tagName || '').toUpperCase();
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-  if (t.closest && t.closest('#inspector')) return true; // anything inside the inspector
+  if (t.closest && t.closest('#inspector')) return true;
   return false;
 }
 
-/* Global key handling (guarded) */
 document.addEventListener('keydown',(e)=>{
   if (isEditingUI(e)) return;
 
@@ -490,10 +471,7 @@ document.addEventListener('keydown',(e)=>{
   }
 });
 
-/* Extra safety: keep key events inside inspector from bubbling up */
-document.getElementById('inspector').addEventListener('keydown', (e) => {
-  e.stopPropagation();
-});
+document.getElementById('inspector').addEventListener('keydown', (e) => { e.stopPropagation(); });
 
 /* ================= Title Inline (optional) ================= */
 function startTitleEdit(obj){
@@ -512,12 +490,16 @@ function startTitleEdit(obj){
   titleEditor.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); commit(); } if(ev.key==='Escape'){ titleEditor.style.display='none'; } };
 }
 
-/* ================= JSON load (preload ../images) ================= */
-document.getElementById('jsonInput').addEventListener('change', async (e)=>{
-  const file = e.target.files[0]; if(!file) return;
-  const text = await file.text(); const data = JSON.parse(text);
-
-  if(data.canvas){ jsonCanvasW=data.canvas.width||canvas.width; jsonCanvasH=data.canvas.height||canvas.height; canvas.width=jsonCanvasW; canvas.height=jsonCanvasH; }
+/* ==================== JSON: reusable apply + file input + preload ==================== */
+async function applyJson(data){
+  if(data.canvas){
+    jsonCanvasW = data.canvas.width || canvas.width;
+    jsonCanvasH = data.canvas.height || canvas.height;
+    canvas.width  = jsonCanvasW;
+    canvas.height = jsonCanvasH;
+    canvasBg = data.canvas.bg || '#ffffff';       // NEW: restore BG
+    if (bgPicker) bgPicker.value = canvasBg;
+  }
 
   objects = [];
 
@@ -566,8 +548,32 @@ document.getElementById('jsonInput').addEventListener('change', async (e)=>{
   }
 
   selected = null;
-  showInspector(false); // will also set zoom comfortable for full view
+  showInspector(false);
   undoStack.length=0; redoStack.length=0; pushUndo(); draw();
+}
+
+/* File input -> applyJson */
+document.getElementById('jsonInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  const text = await file.text(); const data = JSON.parse(text);
+  await applyJson(data);
+});
+
+/* Preload support (relative path or ?json=... override) */
+const PRELOAD_JSON = '../past_moodboards/moodboard.json';
+window.addEventListener('load', async () => {
+  const param = new URLSearchParams(location.search).get('json');
+  const path = param || PRELOAD_JSON;
+  if (!path) return;
+  try {
+    const res = await fetch(path, { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    await applyJson(data);
+    fitZoomForLayout(false);
+  } catch (err) {
+    console.warn('Preload failed:', err);
+  }
 });
 
 /* ================= Fit button ================= */
@@ -579,22 +585,17 @@ document.getElementById('fitBtn').addEventListener('click', ()=>{
 
 /* ================= Save (PNG + JSON) ================= */
 document.getElementById('saveBtn').addEventListener('click', ()=>{
-  // Save JSON snapshot
   const data = snapshot();
   const jsonBlob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
   const jsonUrl = URL.createObjectURL(jsonBlob);
   const jLink = document.createElement('a');
-  jLink.href = jsonUrl;
-  jLink.download = 'moodboard.json';
+  jLink.href = jsonUrl; jLink.download = 'moodboard.json';
   document.body.appendChild(jLink); jLink.click(); jLink.remove();
   URL.revokeObjectURL(jsonUrl);
 
-  // Save PNG render
-  // Temporarily clear transforms by reading the actual canvas pixels
   const pngUrl = canvas.toDataURL('image/png');
   const pLink = document.createElement('a');
-  pLink.href = pngUrl;
-  pLink.download = 'moodboard.png';
+  pLink.href = pngUrl; pLink.download = 'moodboard.png';
   document.body.appendChild(pLink); pLink.click(); pLink.remove();
 });
 
@@ -683,7 +684,6 @@ function bindTitleInputs(){
 }
 bindCommonInputs();
 bindTitleInputs();
-
 </script>
 </body>
 </html>
