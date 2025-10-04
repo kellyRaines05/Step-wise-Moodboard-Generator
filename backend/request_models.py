@@ -18,6 +18,7 @@ class Moodboard(BaseModel):
     title: str
     prompt: str
     image_url: str | None = None
+    json_url: str | None = None
     date_created: str
 
 class PastMoodboardsResponse(BaseModel):

@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 import uuid
-from datetime import date
+from datetime import date, datetime
 from backend.organizer_helpers import *
 from backend.request_models import Moodboard
 from backend.constants import *
@@ -54,17 +54,13 @@ class ImageOrganization:
         grid_x0=MARGIN; grid_y0=MARGIN
         grid_x1=CW-MARGIN; grid_y1=CH-MARGIN
 
-        # Title strip
-        title_side = "top" if len(thumbs)==0 or sum(im.size[0] for im in thumbs)/max(1,len(thumbs)) >= sum(im.size[1] for im in thumbs)/max(1,len(thumbs)) else "left"
+        # Title strip - ALWAYS at the top
+        title_side = "top"  # Force title to always be at the top
         if self.title:
-            if title_side in ("top","bottom"):
-                strip_h = int(CH * TITLE_MAX_FRACTION)
-                title_strip = (0, 0, CW, strip_h)
-                grid_y0 = max(grid_y0, strip_h)
-            else:
-                strip_w = int(CW * TITLE_MAX_FRACTION)
-                title_strip = (0, 0, strip_w, CH)
-                grid_x0 = max(grid_x0, strip_w)
+            # Always place title at the top regardless of image orientation
+            strip_h = int(CH * TITLE_MAX_FRACTION)
+            title_strip = (0, 0, CW, strip_h)
+            grid_y0 = max(grid_y0, strip_h)
             title_img = render_title_image(
                 self.title,
                 (title_strip[2]-title_strip[0]-STRIP_PADDING*2,
@@ -176,16 +172,100 @@ class ImageOrganization:
 
             self.canvas.alpha_composite(to_paste, (int(m.x), int(m.y)))
 
-        out_json = f"{self.out_dir}/{self.title}_{uuid.uuid4()}_placement.json"
+        # Create the JSON data structure
+        json_data = {
+            "canvas": {"w": CANVAS_WIDTH, "h": CANVAS_HEIGHT, "bg": "#ffffff"},
+            "objects": []
+        }
+        
+        # Add title object
+        if title_img is not None:
+            tx0, ty0, tx1, ty1 = title_strip
+            tw, th = title_img.size
+            px = tx0 + (tx1 - tx0 - tw) // 2
+            py = ty0 + 2
+            
+            json_data["objects"].append({
+                "id": 1,
+                "type": "title",
+                "text": self.title,
+                "x": px,
+                "y": py,
+                "w": tw,
+                "h": th,
+                "angle": 0,
+                "scale": 1,
+                "bg": "#ece4dc",
+                "color": "#1e1e1e",
+                "font": "\"MoodboardTitle\", \"Bradley Hand\", \"Segoe UI\", Arial, sans-serif",
+                "shape": "rectangle",
+                "colors": None,
+                "selectable": True
+            })
+        
+        # Add palette object
+        px0, py0, px1, py1 = palette_strip
+        pw, ph = palette_img.size
+        px = px0 + (px1 - px0 - pw) // 2
+        py = py0 + (py1 - py0 - ph) // 2
+        
+        json_data["objects"].append({
+            "id": 2,
+            "type": "palette",
+            "filename": None,
+            "text": None,
+            "bg": None,
+            "color": None,
+            "font": None,
+            "x": px,
+            "y": py,
+            "w": pw,
+            "h": ph,
+            "angle": 0,
+            "scale": 1,
+            "shape": "rectangle",
+            "colors": palette_colors,
+            "selectable": False
+        })
+        
+        # Add image objects
+        for i, (m, im) in enumerate(zip(metas, thumbs)):
+            w, h = int(m.w * m.scale), int(m.h * m.scale)
+            
+            json_data["objects"].append({
+                "id": 3 + i,
+                "type": "image",
+                "filename": m.filename,
+                "text": None,
+                "bg": None,
+                "color": None,
+                "font": None,
+                "x": int(m.x),
+                "y": int(m.y),
+                "w": w,
+                "h": h,
+                "angle": 0,
+                "scale": m.scale,
+                "shape": m.shape,
+                "colors": None,
+                "selectable": True
+            })
+        
+        # Save to file
+        moodboard_id = str(uuid.uuid4())
+        # Sanitize title for filename (remove invalid characters)
+        safe_title = "".join(c for c in self.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        safe_title = safe_title.replace(' ', '_')  # Replace spaces with underscores
+        out_json = f"{self.out_dir}/jsons/{safe_title}_{moodboard_id}_placement.json"
         with open(out_json, "w", encoding="utf-8") as f:
-            json.dump({
-                "canvas": {"width": CANVAS_WIDTH, "height": CANVAS_HEIGHT},
-                "grid_bounds": {"x0": grid_bounds[0], "y0": grid_bounds[1], "x1": grid_bounds[2], "y1": grid_bounds[3]},
-                "title": {"text": self.title, "strip": title_strip if title_img is not None else None, "side": title_side},
-                "palette": {"side": "right" if title_side in ("top","bottom") else "bottom", "strip": palette_strip, "colors": palette_colors},
-                "images": [asdict(m) for m in metas]
-            }, f, ensure_ascii=False, indent=2)
+            json.dump(json_data, f, ensure_ascii=False, indent=2)
             print(f"Wrote {out_json}")
+        
+        # Note: past_moodboards.json is only updated when user saves the moodboard,
+        # not when it's just organized. This prevents cluttering the gallery with
+        # unsaved moodboards.
+        
+        return json_data
     
     def save_moodboard(self, prompt: str):
         out_dir = Path(self.out_dir); out_dir.mkdir(parents=True, exist_ok=True)

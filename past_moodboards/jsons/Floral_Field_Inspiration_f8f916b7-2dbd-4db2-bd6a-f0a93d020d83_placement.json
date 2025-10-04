@@ -1,0 +1,160 @@
+{
+  "canvas": {
+    "w": 1600,
+    "h": 1000,
+    "bg": "#ffffff"
+  },
+  "objects": [
+    {
+      "id": 1,
+      "type": "title",
+      "text": "Floral Field Inspiration",
+      "x": 6,
+      "y": 2,
+      "w": 1588,
+      "h": 168,
+      "angle": 0,
+      "scale": 1,
+      "bg": "#ece4dc",
+      "color": "#1e1e1e",
+      "font": "\"MoodboardTitle\", \"Bradley Hand\", \"Segoe UI\", Arial, sans-serif",
+      "shape": "rectangle",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 2,
+      "type": "palette",
+      "filename": null,
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 1350,
+      "y": 186,
+      "w": 244,
+      "h": 796,
+      "angle": 0,
+      "scale": 1,
+      "shape": "rectangle",
+      "colors": [
+        [
+          195,
+          173,
+          163
+        ],
+        [
+          206,
+          174,
+          9
+        ],
+        [
+          137,
+          112,
+          99
+        ],
+        [
+          78,
+          87,
+          57
+        ],
+        [
+          45,
+          44,
+          34
+        ]
+      ],
+      "selectable": false
+    },
+    {
+      "id": 3,
+      "type": "image",
+      "filename": "image_0.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": -13,
+      "y": 680,
+      "w": 466,
+      "h": 309,
+      "angle": 0,
+      "scale": 1.295802704821238,
+      "shape": "oval",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 4,
+      "type": "image",
+      "filename": "image_1.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 316,
+      "y": 408,
+      "w": 397,
+      "h": 529,
+      "angle": 0,
+      "scale": 1.471558260716486,
+      "shape": "oval",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 5,
+      "type": "image",
+      "filename": "image_2.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 644,
+      "y": 661,
+      "w": 511,
+      "h": 339,
+      "angle": 0,
+      "scale": 1.420068948751517,
+      "shape": "circle",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 6,
+      "type": "image",
+      "filename": "image_3.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 1071,
+      "y": 487,
+      "w": 310,
+      "h": 465,
+      "angle": 0,
+      "scale": 1.293600381730203,
+      "shape": "rectangle",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 7,
+      "type": "image",
+      "filename": "image_4.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 704,
+      "y": 173,
+      "w": 352,
+      "h": 528,
+      "angle": 0,
+      "scale": 1.4669220564193515,
+      "shape": "rectangle",
+      "colors": null,
+      "selectable": true
+    }
+  ]
+}

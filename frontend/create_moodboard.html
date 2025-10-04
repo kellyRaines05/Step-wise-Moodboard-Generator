@@ -87,6 +87,7 @@
   </label>
 
   <button id="saveBtn">Save (PNG + JSON)</button>
+  <button id="backToHomeBtn">Back to Home</button>
 
   <span class="hint">Click to select • Drag to move • Drag corners to resize • Top circle to rotate • Ctrl+Z to undo</span>
 </div>
@@ -261,13 +262,87 @@ function redo(){ if(!redoStack.length) return; const cur=snapshot(); const next=
 
 /* ================= Utilities ================= */
 function baseName(path){ return String(path).split(/[\\/]/).pop(); }
+
+function showSaveSuccessDialog() {
+  // Create modal overlay
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); z-index: 1000; display: flex;
+    align-items: center; justify-content: center;
+  `;
+  
+  // Create dialog box
+  const dialog = document.createElement('div');
+  dialog.style.cssText = `
+    background: white; padding: 30px; border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: center;
+    max-width: 400px; width: 90%;
+  `;
+  
+  dialog.innerHTML = `
+    <h3 style="margin: 0 0 15px 0; color: #2b6cb0;">✅ Moodboard Saved Successfully!</h3>
+    <p style="margin: 0 0 25px 0; color: #666;">Your moodboard has been saved to the gallery as a compiled PNG image.</p>
+    <div style="display: flex; gap: 12px; justify-content: center;">
+      <button id="dialogBackToHomeBtn" style="
+        padding: 10px 20px; background: #2b6cb0; color: white;
+        border: none; border-radius: 6px; cursor: pointer; font-size: 14px;
+      ">Back to Home</button>
+      <button id="continueEditBtn" style="
+        padding: 10px 20px; background: #f3f3f3; color: #333;
+        border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 14px;
+      ">Continue Editing</button>
+    </div>
+  `;
+  
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+  
+  // Handle button clicks
+  document.getElementById('dialogBackToHomeBtn').addEventListener('click', () => {
+    document.body.removeChild(overlay);
+    window.location.href = 'homepage.html';
+  });
+  
+  document.getElementById('continueEditBtn').addEventListener('click', () => {
+    document.body.removeChild(overlay);
+  });
+  
+  // Close on overlay click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      document.body.removeChild(overlay);
+    }
+  });
+}
+
 function loadImage(src){
-  return new Promise((resolve,reject)=>{ const img=new Image(); img.onload=()=>resolve(img); img.onerror=reject; img.src=src; });
+  return new Promise((resolve,reject)=>{ 
+    const img=new Image(); 
+    img.crossOrigin = 'anonymous'; // Fix canvas tainting issue
+    img.onload=()=>resolve(img); 
+    img.onerror=reject; 
+    img.src=src; 
+  });
 }
 async function loadWithFallback(filename){
   const name = baseName(filename);
-  const candidates = ['../images/'+name, './images/'+name];
-  for(const url of candidates){ try { return await loadImage(url); } catch(e){} }
+  const candidates = [
+    'http://localhost:8000/images/'+name,
+    'http://localhost:8000/past_moodboards/images/'+name,
+    '../images/'+name, 
+    './images/'+name
+  ];
+  for(const url of candidates){ 
+    try { 
+      console.log('Trying to load image from:', url);
+      const img = await loadImage(url); 
+      console.log('Successfully loaded image from:', url);
+      return img; 
+    } catch(e){
+      console.warn('Failed to load image from:', url, e);
+    }
+  }
   throw new Error('Image not found: '+name);
 }
 function toLocal(obj,x,y){
@@ -288,6 +363,15 @@ function clipByShape(obj){
   else if(shape === 'circle'){ const r = Math.min(hw, hh); ctx.ellipse(0, 0, r, r, 0, 0, Math.PI*2); }
   else if(shape === 'oval'){ ctx.ellipse(0, 0, hw, hh, 0, 0, Math.PI*2); }
   else { ctx.rect(-hw, -hh, obj.w, obj.h); }
+}
+
+function clipByShapeForContext(context, obj){
+  const hw = obj.w/2, hh = obj.h/2;
+  const shape = (obj.shape||'rectangle').toLowerCase();
+  if(shape === 'rectangle'){ context.rect(-hw, -hh, obj.w, obj.h); }
+  else if(shape === 'circle'){ const r = Math.min(hw, hh); context.ellipse(0, 0, r, r, 0, 0, Math.PI*2); }
+  else if(shape === 'oval'){ context.ellipse(0, 0, hw, hh, 0, 0, Math.PI*2); }
+  else { context.rect(-hw, -hh, obj.w, obj.h); }
 }
 
 /* ================= Drawing ================= */
@@ -493,8 +577,8 @@ function startTitleEdit(obj){
 /* ==================== JSON: reusable apply + file input + preload ==================== */
 async function applyJson(data){
   if(data.canvas){
-    jsonCanvasW = data.canvas.width || canvas.width;
-    jsonCanvasH = data.canvas.height || canvas.height;
+    jsonCanvasW = data.canvas.w || data.canvas.width || canvas.width;
+    jsonCanvasH = data.canvas.h || data.canvas.height || canvas.height;
     canvas.width  = jsonCanvasW;
     canvas.height = jsonCanvasH;
     canvasBg = data.canvas.bg || '#ffffff';       // NEW: restore BG
@@ -531,7 +615,7 @@ async function applyJson(data){
     });
   }
 
-  // Images
+  // Images - handle both old format (data.images) and new format (data.objects)
   if(Array.isArray(data.images)){
     for(const m of data.images){
       if(!m.filename) continue;
@@ -546,10 +630,56 @@ async function applyJson(data){
       });
     }
   }
+  
+  // Handle new format with objects array
+  if(Array.isArray(data.objects)){
+    for(const obj of data.objects){
+      if(obj.type === 'image' && obj.filename){
+        const name=baseName(obj.filename);
+        let img=null; 
+        try{ 
+          img=await loadWithFallback(name); 
+        }catch(err){ 
+          console.warn('Failed to load image:', name, err); 
+        }
+        objects.push({
+          id:nextId++, type:'image',
+          img, filename:name,
+          x:obj.x, y:obj.y, w:obj.w, h:obj.h,
+          angle:obj.angle || 0, scale:obj.scale || 1,
+          shape: (obj.shape || 'rectangle')
+        });
+      }
+      else if(obj.type === 'title'){
+        objects.push({
+          id:nextId++, type:'title',
+          text:obj.text,
+          x:obj.x, y:obj.y, w:obj.w, h:obj.h,
+          angle:obj.angle || 0, scale:obj.scale || 1,
+          bg:obj.bg, color:obj.color, font:obj.font,
+          selectable: obj.selectable !== false
+        });
+      }
+      else if(obj.type === 'palette'){
+        objects.push({
+          id:nextId++, type:'palette',
+          x:obj.x, y:obj.y, w:obj.w, h:obj.h,
+          angle:obj.angle || 0, scale:obj.scale || 1,
+          colors:obj.colors,
+          selectable: obj.selectable !== false
+        });
+      }
+    }
+  }
 
   selected = null;
   showInspector(false);
   undoStack.length=0; redoStack.length=0; pushUndo(); draw();
+  
+  // Ensure the canvas is properly fitted after loading
+  setTimeout(() => {
+    fitZoomForLayout(false);
+  }, 100);
 }
 
 /* File input -> applyJson */
@@ -559,21 +689,35 @@ document.getElementById('jsonInput').addEventListener('change', async (e)=>{
   await applyJson(data);
 });
 
-/* Preload support (relative path or ?json=... override) */
-const PRELOAD_JSON = '../past_moodboards/moodboard.json';
+/* Auto-load organized moodboard data from localStorage if available */
 window.addEventListener('load', async () => {
-  const param = new URLSearchParams(location.search).get('json');
-  const path = param || PRELOAD_JSON;
-  if (!path) return;
-  try {
-    const res = await fetch(path, { cache: 'no-cache' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    await applyJson(data);
-    fitZoomForLayout(false);
-  } catch (err) {
-    console.warn('Preload failed:', err);
+  // Check if there's organized moodboard data from the image selection process
+  const organizedData = localStorage.getItem('organizedMoodboardData');
+  if (organizedData) {
+    try {
+      console.log('Loading organized moodboard data from localStorage');
+      const data = JSON.parse(organizedData);
+      await applyJson(data);
+      fitZoomForLayout(false);
+      
+      // Clear the stored data after loading
+      localStorage.removeItem('organizedMoodboardData');
+      return;
+    } catch (err) {
+      console.warn('Failed to load organized moodboard data:', err);
+      localStorage.removeItem('organizedMoodboardData');
+    }
   }
+  
+  // If no organized data, start with a clean canvas
+  console.log('No organized data found - starting with clean canvas');
+  objects = [];
+  selected = null;
+  showInspector(false);
+  undoStack.length = 0;
+  redoStack.length = 0;
+  pushUndo();
+  draw();
 });
 
 /* ================= Fit button ================= */
@@ -584,19 +728,135 @@ document.getElementById('fitBtn').addEventListener('click', ()=>{
 });
 
 /* ================= Save (PNG + JSON) ================= */
-document.getElementById('saveBtn').addEventListener('click', ()=>{
-  const data = snapshot();
-  const jsonBlob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
-  const jsonUrl = URL.createObjectURL(jsonBlob);
-  const jLink = document.createElement('a');
-  jLink.href = jsonUrl; jLink.download = 'moodboard.json';
-  document.body.appendChild(jLink); jLink.click(); jLink.remove();
-  URL.revokeObjectURL(jsonUrl);
+document.getElementById('saveBtn').addEventListener('click', async ()=>{
+  try {
+    const data = snapshot();
+    console.log('Saving moodboard data:', data);
+    
+    // Convert canvas to blob
+    const canvas = document.getElementById('board');
+    
+    // Create a clean canvas to avoid tainting issues
+    const cleanCanvas = document.createElement('canvas');
+    cleanCanvas.width = canvas.width;
+    cleanCanvas.height = canvas.height;
+    const cleanCtx = cleanCanvas.getContext('2d');
+    
+    // Fill with background color first
+    cleanCtx.fillStyle = canvasBg || '#ffffff';
+    cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
+    
+    // Draw all objects on clean canvas
+    for(const obj of objects){
+      cleanCtx.save();
+      cleanCtx.translate(obj.x+obj.w/2, obj.y+obj.h/2);
+      cleanCtx.rotate(obj.angle);
+      cleanCtx.scale(obj.scale, obj.scale);
 
-  const pngUrl = canvas.toDataURL('image/png');
-  const pLink = document.createElement('a');
-  pLink.href = pngUrl; pLink.download = 'moodboard.png';
-  document.body.appendChild(pLink); pLink.click(); pLink.remove();
+      if(obj.type==='palette'){
+        const gap = 8, inset = 10;
+        const usableW = obj.w - 2*inset, usableH = obj.h - 2*inset;
+        const n = Math.max(1, (obj.colors||[]).length);
+        const swH = Math.floor((usableH - gap*(n-1)) / n);
+        let y = -obj.h/2 + inset;
+        for (let i=0;i<n;i++){
+          const c = obj.colors[i] || [200,200,200];
+          cleanCtx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+          cleanCtx.fillRect(-obj.w/2 + inset, y, usableW, swH);
+          y += swH + gap;
+        }
+      }
+      else if(obj.type==='image' && obj.img){
+        cleanCtx.save(); 
+        cleanCtx.beginPath(); 
+        clipByShapeForContext(cleanCtx, obj); 
+        cleanCtx.clip();
+        cleanCtx.drawImage(obj.img, -obj.w/2, -obj.h/2, obj.w, obj.h);
+        cleanCtx.restore();
+      }
+      else if(obj.type==='image' && !obj.img){
+        // Draw a placeholder rectangle for missing images
+        cleanCtx.fillStyle = '#f0f0f0';
+        cleanCtx.fillRect(-obj.w/2, -obj.h/2, obj.w, obj.h);
+        cleanCtx.strokeStyle = '#ccc';
+        cleanCtx.lineWidth = 2;
+        cleanCtx.strokeRect(-obj.w/2, -obj.h/2, obj.w, obj.h);
+        cleanCtx.fillStyle = '#999';
+        cleanCtx.font = '14px Arial';
+        cleanCtx.textAlign = 'center';
+        cleanCtx.textBaseline = 'middle';
+        cleanCtx.fillText('Missing Image', 0, 0);
+      }
+      else if(obj.type==='title'){
+        cleanCtx.fillStyle = obj.bg || '#ece4dc';
+        roundRect(cleanCtx, -obj.w/2, -obj.h/2, obj.w, obj.h, 10); 
+        cleanCtx.fill();
+
+        const pad = 14;
+        let fontPx = Math.min(64, Math.max(14, obj.h - pad*2));
+        cleanCtx.textAlign='center'; 
+        cleanCtx.textBaseline='middle';
+        const family = obj.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
+        cleanCtx.fillStyle = obj.color || '#1e1e1e';
+        cleanCtx.font = `${fontPx}px ${family}`;
+        let metrics = cleanCtx.measureText(obj.text || '');
+        while(metrics.width > obj.w - pad*2 && fontPx > 10){
+          fontPx -= 1; 
+          cleanCtx.font = `${fontPx}px ${family}`;
+          metrics = cleanCtx.measureText(obj.text || '');
+        }
+        cleanCtx.fillText(obj.text || '', 0, 0);
+      }
+      cleanCtx.restore();
+    }
+    
+    const pngBlob = await new Promise(resolve => cleanCanvas.toBlob(resolve, 'image/png'));
+    
+    // Create form data to send both JSON and PNG
+    const formData = new FormData();
+    formData.append('json_data', JSON.stringify(data, null, 2));
+    formData.append('image', pngBlob, 'moodboard.png');
+    
+    // Get title from the title object if it exists
+    let titleText = 'Untitled Moodboard';
+    const titleObj = objects.find(obj => obj.type === 'title');
+    if (titleObj && titleObj.text) {
+      titleText = titleObj.text;
+    }
+    
+    // Also check the data.objects for title
+    if (titleText === 'Untitled Moodboard' && data.objects) {
+      const dataTitleObj = data.objects.find(obj => obj.type === 'title');
+      if (dataTitleObj && dataTitleObj.text) {
+        titleText = dataTitleObj.text;
+      }
+    }
+    
+    console.log('Extracted title:', titleText);
+    console.log('Objects:', objects);
+    console.log('Data objects:', data.objects);
+    
+    formData.append('title', titleText);
+    formData.append('prompt', 'User-created moodboard');
+    
+    // Send to backend
+    const response = await fetch('http://localhost:8000/api/save_moodboard', {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      showSaveSuccessDialog();
+      console.log('Saved:', result);
+    } else {
+      const error = await response.text();
+      alert('Failed to save moodboard: ' + error);
+    }
+  } catch (err) {
+    console.error('Save error:', err);
+    alert('Failed to save moodboard: ' + err.message);
+  }
 });
 
 /* ================= Inspector Panel Logic ================= */
@@ -684,6 +944,17 @@ function bindTitleInputs(){
 }
 bindCommonInputs();
 bindTitleInputs();
+
+/* ================= Back to Home Button ================= */
+document.getElementById('backToHomeBtn').addEventListener('click', () => {
+  if (objects.length > 0) {
+    if (confirm('Are you sure you want to go back to home? Any unsaved changes will be lost.')) {
+      window.location.href = 'homepage.html';
+    }
+  } else {
+    window.location.href = 'homepage.html';
+  }
+});
 </script>
 </body>
 </html>

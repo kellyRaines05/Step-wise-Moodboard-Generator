@@ -1,0 +1,162 @@
+{
+  "canvas": {
+    "w": 1600,
+    "h": 1000,
+    "bg": "#ffffff"
+  },
+  "objects": [
+    {
+      "id": 1,
+      "type": "title",
+      "filename": null,
+      "text": "Insect Illustration",
+      "bg": "#ece4dc",
+      "color": "#1e1e1e",
+      "font": "\"MoodboardTitle\", \"Bradley Hand\", \"Segoe UI\", Arial, sans-serif",
+      "x": 6,
+      "y": 2,
+      "w": 1588,
+      "h": 168,
+      "angle": 0,
+      "scale": 1,
+      "shape": "rectangle",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 2,
+      "type": "palette",
+      "filename": null,
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 1350,
+      "y": 186,
+      "w": 244,
+      "h": 796,
+      "angle": 0,
+      "scale": 1,
+      "shape": "rectangle",
+      "colors": [
+        [
+          219,
+          220,
+          223
+        ],
+        [
+          168,
+          143,
+          135
+        ],
+        [
+          118,
+          87,
+          71
+        ],
+        [
+          66,
+          50,
+          38
+        ],
+        [
+          19,
+          17,
+          11
+        ]
+      ],
+      "selectable": false
+    },
+    {
+      "id": 6,
+      "type": "image",
+      "filename": "image_3.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 853,
+      "y": 265,
+      "w": 500,
+      "h": 375,
+      "angle": 0,
+      "scale": 0.737646531019872,
+      "shape": "circle",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 5,
+      "type": "image",
+      "filename": "image_2.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 855,
+      "y": 640,
+      "w": 501,
+      "h": 332,
+      "angle": 0,
+      "scale": 0.6703039175871341,
+      "shape": "rectangle",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 4,
+      "type": "image",
+      "filename": "image_1.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 50,
+      "y": 214,
+      "w": 502,
+      "h": 333,
+      "angle": 0,
+      "scale": 0.37090130733738863,
+      "shape": "oval",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 3,
+      "type": "image",
+      "filename": "image_0.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 166.95379537953795,
+      "y": 433.3927392739274,
+      "w": 399,
+      "h": 499,
+      "angle": 0,
+      "scale": 0.777127368666934,
+      "shape": "oval",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 7,
+      "type": "image",
+      "filename": "image_4.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 454.8943894389439,
+      "y": 234.57755775577562,
+      "w": 361,
+      "h": 542,
+      "angle": 0,
+      "scale": 0.6889773283443242,
+      "shape": "rectangle",
+      "colors": null,
+      "selectable": true
+    }
+  ],
+  "selectedId": null
+}

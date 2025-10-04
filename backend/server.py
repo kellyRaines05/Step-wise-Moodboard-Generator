@@ -1,11 +1,13 @@
 
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import json
 import requests
 import shutil
+import uuid
+from datetime import date, datetime
 from backend.MBGen import MBGen
 from backend.request_models import *
 from backend.image_search import get_images
@@ -23,9 +25,11 @@ app.add_middleware(
 
 IMAGE_DIR = os.path.abspath(os.path.join('past_moodboards', 'images'))
 os.makedirs(IMAGE_DIR, exist_ok=True)
-app.mount("/past_moodboards", StaticFiles(directory=IMAGE_DIR), name="past_moodboards")
+app.mount("/past_moodboards", StaticFiles(directory=os.path.abspath('past_moodboards')), name="past_moodboards")
 
 MOODBOARD_IMAGE_DIR = os.path.abspath('images')
+os.makedirs(MOODBOARD_IMAGE_DIR, exist_ok=True)
+app.mount("/images", StaticFiles(directory=MOODBOARD_IMAGE_DIR), name="images")
 
 MBGEN = MBGen(user_prompt=None)
 ORGANIZER = ImageOrganization(title=None)
@@ -42,8 +46,16 @@ def get_past_moodboards() -> PastMoodboardsResponse:
         with open(past_moodboards, 'r', encoding='utf-8') as f:
             data = json.load(f)
             for item in data:
+                # Ensure image_url and json_url are properly formatted
+                if item.get('image_url') and not item['image_url'].startswith('http'):
+                    item['image_url'] = f"http://localhost:8000{item['image_url']}"
+                if item.get('json_url') and not item['json_url'].startswith('http'):
+                    item['json_url'] = f"http://localhost:8000{item['json_url']}"
                 past_moodboard = Moodboard(**item)
                 moodboards.append(past_moodboard)
+    
+    # Sort by date_created (most recent first)
+    moodboards.sort(key=lambda x: x.date_created, reverse=True)
     return PastMoodboardsResponse(moodboards=moodboards)
 
 @app.post("/api/generate_title")
@@ -68,6 +80,16 @@ def get_moodboard_iamges(keyword: ImageRequest) -> ImagesResponse:
 
 @app.post("/api/download_images")
 def download_images(images: DownloadRequest) -> StatusResponse:
+    # Clear all existing images before downloading new ones
+    try:
+        for file in os.listdir(MOODBOARD_IMAGE_DIR):
+            if file.startswith("image_") and file.endswith(".png"):
+                os.remove(os.path.join(MOODBOARD_IMAGE_DIR, file))
+        print(f"Cleared existing images from {MOODBOARD_IMAGE_DIR}")
+    except Exception as e:
+        print(f"Warning: Could not clear existing images: {e}")
+    
+    # Download new images
     for i, image_url in enumerate(images.images):
         try:
             response = requests.get(image_url, stream=True)
@@ -84,20 +106,73 @@ def download_images(images: DownloadRequest) -> StatusResponse:
 @app.post("/api/organize_moodboard")
 def organize_moodboard(title: TitleResponse):
     ORGANIZER.title = title.title
-    ORGANIZER.organize_images()
-    return
+    json_data = ORGANIZER.organize_images()
+    return {"json_data": json_data}
 
 @app.post("/api/save_moodboard")
-def save_moodboard() -> SavedMoodboardResponse:
-    json_moodboard = ORGANIZER.save_moodboard()
-    for filename in os.listdir(MOODBOARD_IMAGE_DIR):
-        file_path = os.path.join(MOODBOARD_IMAGE_DIR, filename)
-        try:
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-        except Exception as e:
-            print('Failed to delete %s. Reason: %s' % (file_path, e))
-    return SavedMoodboardResponse(status="success", filename=json_moodboard)
+async def save_moodboard(
+    json_data: str = Form(...),
+    image: UploadFile = File(...),
+    title: str = Form(...),
+    prompt: str = Form(...)
+) -> SavedMoodboardResponse:
+    try:
+        print(f"Received save request: title={title}, prompt={prompt}")
+        print(f"JSON data length: {len(json_data)}")
+        print(f"JSON data preview: {json_data[:200]}...")
+        
+        # Generate unique ID for this moodboard
+        moodboard_id = str(uuid.uuid4())
+        
+        # Sanitize title for filename (remove invalid characters)
+        safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        safe_title = safe_title.replace(' ', '_')  # Replace spaces with underscores
+        
+        # Save the PNG image
+        image_filename = f"{safe_title}_{moodboard_id}.png"
+        image_path = os.path.join(IMAGE_DIR, image_filename)
+        
+        print(f"Saving image to: {image_path}")
+        with open(image_path, "wb") as buffer:
+            content = await image.read()
+            buffer.write(content)
+        
+        # Save the JSON placement data
+        json_filename = f"{safe_title}_{moodboard_id}_placement.json"
+        json_path = os.path.join('past_moodboards', 'jsons', json_filename)
+        
+        # Save the JSON placement data (no individual image copying)
+        print(f"Saving JSON to: {json_path}")
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(json.loads(json_data), f, ensure_ascii=False, indent=2)
+        
+        # Update the past_moodboards.json file
+        past_moodboards_file = os.path.join('past_moodboards', 'past_moodboards.json')
+        moodboard_entry = {
+            "title": title,
+            "prompt": prompt,
+            "image_url": f"/past_moodboards/images/{image_filename}",
+            "json_url": f"/past_moodboards/jsons/{json_filename}",
+            "date_created": datetime.now().isoformat()  # Use precise timestamp
+        }
+        
+        if os.path.exists(past_moodboards_file) and os.path.getsize(past_moodboards_file) > 0:
+            with open(past_moodboards_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        else:
+            data = []
+        
+        data.append(moodboard_entry)
+        
+        with open(past_moodboards_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        
+        print(f"Successfully saved moodboard: {json_filename}")
+        return SavedMoodboardResponse(status="success", filename=json_filename)
+        
+    except Exception as e:
+        print(f"Error saving moodboard: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return SavedMoodboardResponse(status="error", filename=str(e))
 

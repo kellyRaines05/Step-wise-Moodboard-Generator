@@ -1,8 +1,9 @@
 [
-    {
-        "title": "Minimal Interior",
-        "prompt": "Create a moodboard for a minimal interior design with neutral colors and natural materials.",
-        "image_url": "http://localhost:8000/past_moodboards/moodboard.png",
-        "date_created": "2024-10-01"
-    }
+  {
+    "title": "Insect Illustration",
+    "prompt": "User-created moodboard",
+    "image_url": "/past_moodboards/images/Insect_Illustration_9710ff4b-987f-4f8c-bf7d-ab613806ff72.png",
+    "json_url": "/past_moodboards/jsons/Insect_Illustration_9710ff4b-987f-4f8c-bf7d-ab613806ff72_placement.json",
+    "date_created": "2025-10-04T13:11:54.746424"
+  }
 ]

@@ -175,6 +175,15 @@
                     body: JSON.stringify({ title: title_content })
                 });
                 if (!response.ok) throw new Error('Error organizing moodboard');
+                
+                // Get the organized JSON data
+                const result = await response.json();
+                const jsonData = result.json_data;
+                
+                // Store the organized data in localStorage to pass to create_moodboard.html
+                localStorage.setItem('organizedMoodboardData', JSON.stringify(jsonData));
+                console.log('Stored organized moodboard data:', jsonData);
+                
             } catch (error) {
                 console.warn(error)
             }
