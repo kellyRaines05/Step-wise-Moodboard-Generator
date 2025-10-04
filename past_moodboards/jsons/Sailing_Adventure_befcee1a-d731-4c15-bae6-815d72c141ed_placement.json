@@ -1,0 +1,142 @@
+{
+  "canvas": {
+    "w": 1600,
+    "h": 1000,
+    "bg": "#ffffff"
+  },
+  "objects": [
+    {
+      "id": 1,
+      "type": "title",
+      "text": "Sailing Adventure",
+      "x": 6,
+      "y": 2,
+      "w": 1588,
+      "h": 168,
+      "angle": 0,
+      "scale": 1,
+      "bg": "#ece4dc",
+      "color": "#1e1e1e",
+      "font": "\"MoodboardTitle\", \"Bradley Hand\", \"Segoe UI\", Arial, sans-serif",
+      "shape": "rectangle",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 2,
+      "type": "palette",
+      "filename": null,
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 1350,
+      "y": 186,
+      "w": 244,
+      "h": 796,
+      "angle": 0,
+      "scale": 1,
+      "shape": "rectangle",
+      "colors": [
+        [
+          198,
+          206,
+          205
+        ],
+        [
+          158,
+          175,
+          189
+        ],
+        [
+          218,
+          142,
+          88
+        ],
+        [
+          103,
+          111,
+          111
+        ],
+        [
+          29,
+          45,
+          41
+        ]
+      ],
+      "selectable": false
+    },
+    {
+      "id": 3,
+      "type": "image",
+      "filename": "image_0.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 77,
+      "y": 174,
+      "w": 530,
+      "h": 353,
+      "angle": 0,
+      "scale": 1.4747272341378943,
+      "shape": "rectangle",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 4,
+      "type": "image",
+      "filename": "image_1.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 674,
+      "y": 236,
+      "w": 573,
+      "h": 382,
+      "angle": 0,
+      "scale": 1.5930624968697062,
+      "shape": "rectangle",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 5,
+      "type": "image",
+      "filename": "image_2.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 800,
+      "y": 615,
+      "w": 549,
+      "h": 364,
+      "angle": 0,
+      "scale": 1.5269943490876277,
+      "shape": "circle",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 6,
+      "type": "image",
+      "filename": "image_3.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 192,
+      "y": 470,
+      "w": 371,
+      "h": 544,
+      "angle": 0,
+      "scale": 1.5119829568740373,
+      "shape": "oval",
+      "colors": null,
+      "selectable": true
+    }
+  ]
+}

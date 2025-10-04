@@ -98,9 +98,9 @@ def download_images(images: DownloadRequest) -> StatusResponse:
                 for chunk in response.iter_content(chunk_size=8192):
                     file.write(chunk)
         except requests.exceptions.RequestException as e:
-            return StatusResponse(status_code=500, detail=e)
+            return StatusResponse(status_code=500, detail=str(e))
         except Exception as e:
-            return StatusResponse(status_code=500, detail=e)
+            return StatusResponse(status_code=500, detail=str(e))
     return StatusResponse(status_code=200)
 
 @app.post("/api/organize_moodboard")

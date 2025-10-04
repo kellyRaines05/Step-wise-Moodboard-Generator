@@ -1,0 +1,144 @@
+{
+  "canvas": {
+    "w": 1600,
+    "h": 1000,
+    "bg": "#ffffff"
+  },
+  "objects": [
+    {
+      "id": 1,
+      "type": "title",
+      "filename": null,
+      "text": "**Gaming Studio Vibe**",
+      "bg": "#ece4dc",
+      "color": "#1e1e1e",
+      "font": "\"MoodboardTitle\", \"Bradley Hand\", \"Segoe UI\", Arial, sans-serif",
+      "x": 6,
+      "y": 2,
+      "w": 1588,
+      "h": 168,
+      "angle": 0,
+      "scale": 1,
+      "shape": "rectangle",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 2,
+      "type": "palette",
+      "filename": null,
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 1350,
+      "y": 186,
+      "w": 244,
+      "h": 796,
+      "angle": 0,
+      "scale": 1,
+      "shape": "rectangle",
+      "colors": [
+        [
+          202,
+          204,
+          205
+        ],
+        [
+          151,
+          130,
+          119
+        ],
+        [
+          98,
+          69,
+          59
+        ],
+        [
+          26,
+          20,
+          19
+        ],
+        [
+          7,
+          7,
+          3
+        ]
+      ],
+      "selectable": false
+    },
+    {
+      "id": 5,
+      "type": "image",
+      "filename": "image_2.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 802,
+      "y": 169,
+      "w": 544,
+      "h": 363,
+      "angle": 0,
+      "scale": 0.7899384880921014,
+      "shape": "rectangle",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 3,
+      "type": "image",
+      "filename": "image_0.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 447,
+      "y": 617,
+      "w": 577,
+      "h": 385,
+      "angle": 0,
+      "scale": 0.843419254071608,
+      "shape": "rectangle",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 4,
+      "type": "image",
+      "filename": "image_1.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 94,
+      "y": 284,
+      "w": 542,
+      "h": 361,
+      "angle": 0,
+      "scale": 1.4365169606526396,
+      "shape": "oval",
+      "colors": null,
+      "selectable": true
+    },
+    {
+      "id": 6,
+      "type": "image",
+      "filename": "image_3.png",
+      "text": null,
+      "bg": null,
+      "color": null,
+      "font": null,
+      "x": 997,
+      "y": 470,
+      "w": 359,
+      "h": 539,
+      "angle": 0,
+      "scale": 1.0843008422349572,
+      "shape": "circle",
+      "colors": null,
+      "selectable": true
+    }
+  ],
+  "selectedId": null
+}

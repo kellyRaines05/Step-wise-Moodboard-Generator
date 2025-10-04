@@ -76,8 +76,8 @@
 
   <label style="display:flex; align-items:center; gap:6px;">
     Zoom
-    <input type="range" id="zoomRange" min="40" max="200" value="90" />
-    <span id="zoomLabel">90%</span>
+    <input type="range" id="zoomRange" min="20" max="120" value="45" />
+    <span id="zoomLabel">45%</span>
   </label>
 
   <!-- NEW: canvas background color picker -->
@@ -178,8 +178,20 @@ applyZoom(currentZoom);
 function fitZoomForLayout(inspectorOpen){
   const wrapRect = canvasWrap.getBoundingClientRect();
   const margin = 24;
-  const maxZ = Math.min((wrapRect.width - margin) / canvas.width, (window.innerHeight - 180) / canvas.height);
-  const target = inspectorOpen ? Math.min(0.95, Math.max(0.45, maxZ)) : Math.min(1.0, Math.max(0.5, maxZ));
+  
+  // Account for title at top and palette on right
+  const titleHeight = 120; // Approximate title height
+  const paletteWidth = 200; // Approximate palette width
+  
+  // Calculate available space excluding title and palette
+  const availableWidth = wrapRect.width - margin - paletteWidth;
+  const availableHeight = wrapRect.height - margin - titleHeight;
+  
+  // Calculate zoom based on available space vs canvas size
+  const maxZ = Math.min(availableWidth / canvas.width, availableHeight / canvas.height);
+  
+  // Apply consistent zoom limits regardless of inspector state
+  const target = Math.min(0.7, Math.max(0.3, maxZ));
   const z = isFinite(target) ? target : currentZoom;
   const pct = Math.round(z*100);
   zoomRange.value = String(pct);
@@ -506,6 +518,16 @@ canvas.addEventListener('mousedown',(e)=>{
   draw();
 });
 
+// Throttle draw calls to prevent stuttering
+let drawTimeout = null;
+function throttledDraw() {
+  if (drawTimeout) return;
+  drawTimeout = requestAnimationFrame(() => {
+    draw();
+    drawTimeout = null;
+  });
+}
+
 window.addEventListener('mousemove',(e)=>{
   if(!selected || !dragMode) return;
   const pt = getCanvasMouse(e);
@@ -521,10 +543,19 @@ window.addEventListener('mousemove',(e)=>{
     selected.scale=s;
   }
 
-  lastMouse=pt; draw();
+  lastMouse=pt; 
+  throttledDraw();
 });
 
-window.addEventListener('mouseup',()=>{ dragMode=null; });
+window.addEventListener('mouseup',()=>{ 
+  dragMode=null; 
+  // Ensure final draw after drag operation
+  if (drawTimeout) {
+    cancelAnimationFrame(drawTimeout);
+    drawTimeout = null;
+  }
+  draw();
+});
 
 /* ==================== Prevent inspector from triggering canvas hotkeys ==================== */
 function isEditingUI(e) {
@@ -718,6 +749,11 @@ window.addEventListener('load', async () => {
   redoStack.length = 0;
   pushUndo();
   draw();
+  
+  // Apply initial zoom fitting
+  setTimeout(() => {
+    fitZoomForLayout(false);
+  }, 100);
 });
 
 /* ================= Fit button ================= */
