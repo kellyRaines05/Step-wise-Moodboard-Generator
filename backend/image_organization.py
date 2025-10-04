@@ -31,7 +31,7 @@ if ALLOW_DUPLICATE_OMP:
 os.environ.setdefault("OMP_NUM_THREADS", str(OMP_NUM_THREADS))
 
 class ImageOrganization:
-    def __init__(self, title: str, images_dir: str="../images", out_dir: str="../past_moodboards"):
+    def __init__(self, title: str, images_dir: str="images", out_dir: str="past_moodboards"):
         self.images_dir = images_dir
         self.out_dir = out_dir
         self.title = title

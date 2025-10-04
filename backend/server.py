@@ -75,11 +75,11 @@ def download_images(images: DownloadRequest) -> StatusResponse:
             with open(os.path.join(MOODBOARD_IMAGE_DIR, f"image_{i}.png"), "wb") as file:
                 for chunk in response.iter_content(chunk_size=8192):
                     file.write(chunk)
-            return StatusResponse(status_code=200)
         except requests.exceptions.RequestException as e:
             return StatusResponse(status_code=500, detail=e)
         except Exception as e:
             return StatusResponse(status_code=500, detail=e)
+    return StatusResponse(status_code=200)
 
 @app.post("/api/organize_moodboard")
 def organize_moodboard(title: TitleResponse):

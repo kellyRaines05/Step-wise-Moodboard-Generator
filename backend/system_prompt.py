@@ -16,12 +16,12 @@ First answer the following questions to help you brainstorm relevant keywords:
     1. What is the purpose of the moodboard (e.g. fashion, outfit, apparel, furniture, table, bedding, decorations, location, interior design, living room, event, wedding, etc.)?
     2. What descriptive words would fit the main theme of the moodboard? Could be things such as colors, styles, patterns, etc.
     3. What are the appropriate images and items to be shown for the moodboard? For example,
-        a. If it is fashion/apparel, what garments should be selected? Skirt, pants, shirt, dress, etc.
-        b. If it is wedding, what should the bride and groom wear? What should the place look like? Not only location, but what decor, what furniture, what dinning wear
+        a. If it is fashion/apparel, what specific garments should be selected? Skirt, pants, shirt, dress, etc.
+        b. If it is an event like a wedding, what should the bride and groom wear? What should the place look like? Not only location, but what decor, what furniture, what dinning wear
         c. If it is interior design, what specific furniture does it need? Table, bed, lamp, couch, carpet, etc. What type of room is this?
 
 With these answers in mind, come up with 5-10 items and/or descriptions of images to include in the moodboard. It should be a JSON-formatted list with the key "keywords".
-These image descriptions should be able to answer all of the questions asked previously about the colors, styles, items or objects in the images in ONLY 2-3 words.
+These image descriptions should be able to answer all of the questions in ONLY 2-3 words both the item and its characteristics.
 
 If given an image, include keywords that describe the style, colors, and objects in the image.
 '''

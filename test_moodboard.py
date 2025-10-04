@@ -24,17 +24,13 @@ from pathlib import Path
 # os.environ["OMP_NUM_THREADS"] = "1"
 
 # ---- Imports from your project ----------------------------------------------
-from image_organization import ImageOrganization
-import constants as C
+from backend.image_organization import ImageOrganization
+import backend.constants as C
 
 def main():
     # ---------------- Try-it knobs (comment/uncomment) ----------------
     # 1) Title to render at the top/left strip:
     title = "Test Moodboard"   # e.g., "Brutalist Interiors", "Coastal Modern", etc.
-
-    # 2) Input/Output directories:
-    images_dir = "../images"         # change if your images are elsewhere
-    out_dir    = "./past_moodboards"  # where we save PNG + JSON
 
     # 3) Flip this to quickly disable CLIP (for fast tests) — or leave as-is:
     # C.USE_CLIP = False
@@ -49,14 +45,9 @@ def main():
 
     # ------------------------------------------------------------------
 
-    # Ensure output directory exists
-    Path(out_dir).mkdir(parents=True, exist_ok=True)
-
     # Instantiate the organizer with a fresh canvas
     org = ImageOrganization(
         title=title,
-        images_dir=images_dir,
-        out_dir=out_dir,
     )
 
     # Generate the layout and composite onto the canvas

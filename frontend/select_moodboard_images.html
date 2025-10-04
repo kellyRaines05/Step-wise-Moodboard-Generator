@@ -150,6 +150,8 @@
                 .filter(item => item.selected)
                 .map(item => item.url);
 
+            console.log(imagesToDownload)
+
             if (imagesToDownload.length < 3) {
                 document.getElementById('min-selection-modal').style.display = 'flex';
                 return;
@@ -165,8 +167,7 @@
             } catch (error) {
                 console.warn(error)
             }
-            
-            // TODO: test from here down
+
             try {
                 const response = await fetch("http://localhost:8000/api/organize_moodboard", {
                     method: 'POST',
