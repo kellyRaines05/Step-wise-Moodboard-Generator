@@ -146,6 +146,15 @@
         }
 
         async function handleSubmit() {
+            const continueButton = document.getElementById('continue-button');
+            const originalText = continueButton.textContent;
+            
+            // Show loading state
+            continueButton.disabled = true;
+            continueButton.textContent = 'Loading...';
+            continueButton.style.opacity = '0.7';
+            continueButton.style.cursor = 'not-allowed';
+            
             const imagesToDownload = selectedImages
                 .filter(item => item.selected)
                 .map(item => item.url);
@@ -153,6 +162,11 @@
             console.log(imagesToDownload)
 
             if (imagesToDownload.length < 3) {
+                // Reset button state if validation fails
+                continueButton.disabled = false;
+                continueButton.textContent = originalText;
+                continueButton.style.opacity = '1';
+                continueButton.style.cursor = 'pointer';
                 document.getElementById('min-selection-modal').style.display = 'flex';
                 return;
             }
@@ -166,6 +180,12 @@
                 if (!response.ok) throw new Error('Error downloading images');
             } catch (error) {
                 console.warn(error)
+                // Reset button state on error
+                continueButton.disabled = false;
+                continueButton.textContent = originalText;
+                continueButton.style.opacity = '1';
+                continueButton.style.cursor = 'pointer';
+                return;
             }
 
             try {
@@ -186,6 +206,12 @@
                 
             } catch (error) {
                 console.warn(error)
+                // Reset button state on error
+                continueButton.disabled = false;
+                continueButton.textContent = originalText;
+                continueButton.style.opacity = '1';
+                continueButton.style.cursor = 'pointer';
+                return;
             }
             
             window.location.href = "create_moodboard.html"

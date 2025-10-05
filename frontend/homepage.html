@@ -116,7 +116,22 @@
             display_past_moodboards(moodboards_list=moodboards);
         }
 
-        window.onload = loadPastMoodboards;
+        async function clearImagesOnHomepage() {
+            try {
+                await fetch('http://localhost:8000/api/clear_images', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                console.log('Images cleared on homepage load');
+            } catch (error) {
+                console.warn('Failed to clear images on homepage:', error);
+            }
+        }
+
+        window.onload = async () => {
+            await clearImagesOnHomepage();
+            await loadPastMoodboards();
+        };
 
         function navigate_to_generation() {
             const promptInput = document.querySelector('.prompt-box input[type="text"]');

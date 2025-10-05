@@ -1,201 +1,299 @@
 <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
     <title>MBGen - New Moodboard</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-  </head>
-  <body>
-    <div class="topbar">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+<div class="topbar">
       <button id="undoBtn" title="Ctrl+Z" class="primary-btn">Undo</button>
       <button id="redoBtn" title="Ctrl+Y / Ctrl+Shift+Z" class="primary-btn">Redo</button>
       <label class="secondary-btn file-input-label">Load JSON <input type="file" id="jsonInput" accept=".json"></label>
       
       <button id="toggleInspectorBtn" class="secondary-btn">Toggle Inspector</button>
       <label style="display:flex; align-items:center; gap:12px;">
-        Background
-        <input type="color" id="bgPicker" value="#ffffff">
-      </label>
+    Background
+    <input type="color" id="bgPicker" value="#ffffff">
+  </label>
 
-      <span class="hint">Click to select • Drag to move • Drag corners to resize • Top circle to rotate • Ctrl+Z to undo</span>
-    </div>
+  <span class="hint">Click to select • Drag to move • Drag corners to resize • Top circle to rotate • Ctrl+Z to undo</span>
+</div>
     <header>
       <div class="title">Finalize Moodboard!</div>
     </header>
-    
-    <div class="layout">
-      <div class="canvasWrap" id="canvasWrap">
+
+<div class="layout">
+  <div class="canvasWrap" id="canvasWrap">
         <canvas id="board"></canvas>
-        <input id="titleEditor" />
+      <input id="titleEditor" />
+  </div>
+
+  <aside class="panel" id="inspector" hidden>
+    <header>
+      <div id="panelTitle">Inspector</div>
+      <button class="close" id="closeInspectorBtn" title="Close">&times;</button>
+    </header>
+    <section id="commonSection">
+      <div class="row"><label>Type</label><div id="objType" class="muted">—</div></div>
+      <div class="row"><label>Filename</label><div id="objFilename" class="muted">—</div></div>
+      <div class="row"><label>X</label><input type="number" id="inpX" step="1"></div>
+      <div class="row"><label>Y</label><input type="number" id="inpY" step="1"></div>
+      <div class="row"><label>Width</label><input type="number" id="inpW" step="1" min="1"></div>
+      <div class="row"><label>Height</label><input type="number" id="inpH" step="1" min="1"></div>
+      <div class="row"><label>Scale</label><input type="number" id="inpScale" step="0.01" min="0.05"></div>
+      <div class="row"><label>Rotation°</label><input type="number" id="inpRot" step="1"></div>
+      <div class="row" id="shapeRow">
+        <label>Mask Shape</label>
+        <select id="inpShape">
+          <option value="rectangle">Rectangle</option>
+          <option value="circle">Circle</option>
+          <option value="oval">Oval</option>
+        </select>
       </div>
+    </section>
 
-      <aside class="panel" id="inspector" hidden>
-        <header>
-          <div id="panelTitle">Inspector</div>
-          <button class="close" id="closeInspectorBtn" title="Close">&times;</button>
-        </header>
-        <section id="commonSection">
-          <div class="row"><label>Type</label><div id="objType" class="muted">—</div></div>
-          <div class="row"><label>Filename</label><div id="objFilename" class="muted">—</div></div>
-          <div class="row"><label>X</label><input type="number" id="inpX" step="1"></div>
-          <div class="row"><label>Y</label><input type="number" id="inpY" step="1"></div>
-          <div class="row"><label>Width</label><input type="number" id="inpW" step="1" min="1"></div>
-          <div class="row"><label>Height</label><input type="number" id="inpH" step="1" min="1"></div>
-          <div class="row"><label>Scale</label><input type="number" id="inpScale" step="0.01" min="0.05"></div>
-          <div class="row"><label>Rotation°</label><input type="number" id="inpRot" step="1"></div>
-          <div class="row" id="shapeRow">
-            <label>Mask Shape</label>
-            <select id="inpShape">
-              <option value="rectangle">Rectangle</option>
-              <option value="circle">Circle</option>
-              <option value="oval">Oval</option>
-            </select>
-          </div>
-        </section>
+    <section id="titleSection" hidden>
+      <div class="row"><label>Title Text</label><input type="text" id="inpTitleText" placeholder="Enter title..."></div>
+      <div class="row"><label>Text Color</label><input type="color" id="inpTitleColor"></div>
+      <div class="row"><label>Badge Color</label><input type="color" id="inpTitleBG"></div>
+      <div class="row"><label>Font Family</label>
+        <input type="text" id="inpTitleFont" placeholder='"MoodboardTitle", "Bradley Hand", Segoe UI, Arial'>
+      </div>
+      <div class="row">
+        <label></label><div class="muted">Tip: add a TTF at <code>../fonts/BradleyHandITC.ttf</code> to use the included @font-face.</div>
+      </div>
+    </section>
 
-        <section id="titleSection" hidden>
-          <div class="row"><label>Title Text</label><input type="text" id="inpTitleText" placeholder="Enter title..."></div>
-          <div class="row"><label>Text Color</label><input type="color" id="inpTitleColor"></div>
-          <div class="row"><label>Badge Color</label><input type="color" id="inpTitleBG"></div>
-          <div class="row"><label>Font Family</label>
-            <input type="text" id="inpTitleFont" placeholder='"MoodboardTitle", "Bradley Hand", Segoe UI, Arial'>
-          </div>
-          <div class="row">
-            <label></label><div class="muted">Tip: add a TTF at <code>../fonts/BradleyHandITC.ttf</code> to use the included @font-face.</div>
-          </div>
-        </section>
+    <section id="paletteSection" hidden>
+      <div class="row"><label>Status</label><div class="muted">Palette is fixed (not selectable).</div></div>
+    </section>
+  </aside>
+</div>
 
-        <section id="paletteSection" hidden>
-          <div class="row"><label>Status</label><div class="muted">Palette is fixed (not selectable).</div></div>
-        </section>
-      </aside>
-    </div>
-    
     <div class="action-footer">
         <button id="backToHomeBtn" class="back-btn">Back to Home</button>
         <button id="saveBtn" class="primary-btn">Save</button>
     </div>
     
   </body>
-  <script>
-    /* ================= Canvas + State ================= */
-    const canvas = document.getElementById('board');
-    const ctx = canvas.getContext('2d');
-    const titleEditor = document.getElementById('titleEditor');
+<script>
+/* ================= Canvas + State ================= */
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+const titleEditor = document.getElementById('titleEditor');
 
-    let objects = [];       // draw order: back -> front
-    let nextId = 1;         // unique ids
-    let selected = null;
-    let dragMode = null;    // 'move' | 'scale' | 'rotate' | null
-    let lastMouse = {x:0,y:0};
-    
+let objects = [];       // draw order: back -> front
+let nextId = 1;         // unique ids
+let selected = null;
+let dragMode = null;    // 'move' | 'scale' | 'rotate' | null
+let lastMouse = {x:0,y:0};
+
     // NOTE: These fixed values are no longer used for canvas dimensions but for object loading scale.
     let jsonCanvasW = 1200, jsonCanvasH = 800; 
 
     /* ===== Canvas Background ===== */
-    const bgPicker = document.getElementById('bgPicker');
-    let canvasBg = '#ffffff';
-    bgPicker.addEventListener('input', () => { canvasBg = bgPicker.value; draw(); });
+const bgPicker = document.getElementById('bgPicker');
+let canvasBg = '#ffffff';
+bgPicker.addEventListener('input', () => { canvasBg = bgPicker.value; draw(); });
 
-    /* ================= Responsive Resizing (NEW) ================= */
-    const canvasWrap = document.getElementById('canvasWrap');
+    /* ================= Fixed Canvas Sizing ================= */
+const canvasWrap = document.getElementById('canvasWrap');
+    
+    // Fixed canvas dimensions that work well with both inspector open and closed
+    const FIXED_CANVAS_WIDTH = 1000;
+    const FIXED_CANVAS_HEIGHT = 700;
     
     /**
-     * Sets the canvas's internal drawing buffer size (width/height attributes) 
-     * to match its actual CSS display size (clientWidth/clientHeight).
+     * Sets the canvas to fixed dimensions and centers it in the available space
      */
-    function resizeCanvas() {
-        const wrapRect = canvasWrap.getBoundingClientRect();
-        // Set canvas width/height attributes to match its actual display size
-        canvas.width = wrapRect.width - 16; // 16px for padding inside canvasWrap (8px on each side)
-        canvas.height = wrapRect.height - 16;
+    function setupCanvas() {
+        // Set fixed canvas dimensions
+        canvas.width = FIXED_CANVAS_WIDTH;
+        canvas.height = FIXED_CANVAS_HEIGHT;
+        
+        // Center the canvas in its container
+  const wrapRect = canvasWrap.getBoundingClientRect();
+        const availableWidth = wrapRect.width - 16; // Account for padding
+        const availableHeight = wrapRect.height - 16;
+        
+        // Calculate scale to fit canvas in available space while maintaining aspect ratio
+        const scaleX = availableWidth / FIXED_CANVAS_WIDTH;
+        const scaleY = availableHeight / FIXED_CANVAS_HEIGHT;
+        const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
+        
+        // Apply the scale via CSS transform
+        canvas.style.transform = `scale(${scale})`;
+        canvas.style.transformOrigin = 'center center';
+        
+        // Center the canvas
+        canvas.style.margin = 'auto';
+        
         draw();
     }
 
-    // Call resize on initial load and window resize
-    window.addEventListener('resize', resizeCanvas);
-    window.addEventListener('load', resizeCanvas);
+    /**
+     * Automatically scales and centers all objects to fit within the canvas
+     */
+    function fitMoodboardToCanvas() {
+        if (objects.length === 0) {
+            console.log('No objects to fit to canvas');
+            return;
+        }
+        
+        // Find the bounding box of all objects
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        let validObjects = 0;
+        
+        for (const obj of objects) {
+            if (!obj || typeof obj.x !== 'number' || typeof obj.y !== 'number' || 
+                typeof obj.w !== 'number' || typeof obj.h !== 'number') {
+                console.warn('Invalid object found:', obj);
+                continue;
+            }
+            
+            validObjects++;
+            const left = obj.x;
+            const top = obj.y;
+            const right = obj.x + obj.w;
+            const bottom = obj.y + obj.h;
+            
+            minX = Math.min(minX, left);
+            minY = Math.min(minY, top);
+            maxX = Math.max(maxX, right);
+            maxY = Math.max(maxY, bottom);
+        }
+        
+        if (validObjects === 0) {
+            console.log('No valid objects to fit to canvas');
+            return;
+        }
+        
+        const contentWidth = maxX - minX;
+        const contentHeight = maxY - minY;
+        
+        if (contentWidth <= 0 || contentHeight <= 0) {
+            console.log('Invalid content dimensions:', contentWidth, contentHeight);
+            return;
+        }
+        
+        // Calculate scale to fit content with minimal padding for larger content
+        const padding = 20; // Reduced padding for larger content
+        const scaleX = (FIXED_CANVAS_WIDTH - padding * 2) / contentWidth;
+        const scaleY = (FIXED_CANVAS_HEIGHT - padding * 2) / contentHeight;
+        const scale = Math.min(scaleX, scaleY, 1.2); // Allow scaling up to 120% for larger content
+        
+        // Calculate center offset
+        const centerX = FIXED_CANVAS_WIDTH / 2;
+        const centerY = FIXED_CANVAS_HEIGHT / 2;
+        const contentCenterX = (minX + maxX) / 2;
+        const contentCenterY = (minY + maxY) / 2;
+        
+        // Apply scaling and centering to all objects
+        for (const obj of objects) {
+            if (!obj || typeof obj.x !== 'number' || typeof obj.y !== 'number' || 
+                typeof obj.w !== 'number' || typeof obj.h !== 'number') {
+                continue;
+            }
+            
+            // Scale the object
+            obj.w *= scale;
+            obj.h *= scale;
+            obj.scale *= scale;
+            
+            // Move object to be centered
+            obj.x = centerX + (obj.x - contentCenterX) * scale;
+            obj.y = centerY + (obj.y - contentCenterY) * scale;
+        }
+        
+        console.log(`Fitted ${validObjects} objects to canvas with scale: ${scale.toFixed(2)}`);
+        draw();
+    }
+
+    // Call setup on initial load and window resize
+    window.addEventListener('resize', setupCanvas);
+    window.addEventListener('load', setupCanvas);
 
 
     /* ================= Inspector Show/Hide ================= */
-    const inspector = document.getElementById('inspector');
-    const closeInspectorBtn = document.getElementById('closeInspectorBtn');
-    const toggleInspectorBtn = document.getElementById('toggleInspectorBtn');
+const inspector = document.getElementById('inspector');
+const closeInspectorBtn = document.getElementById('closeInspectorBtn');
+const toggleInspectorBtn = document.getElementById('toggleInspectorBtn');
 
-    function showInspector(show){
-      inspector.hidden = !show;
-      resizeCanvas(); // Recalculate size after inspector toggles
-    }
-    closeInspectorBtn.addEventListener('click', ()=> showInspector(false));
-    toggleInspectorBtn.addEventListener('click', ()=> showInspector(inspector.hidden));
+function showInspector(show){
+  inspector.hidden = !show;
+      // No need to resize canvas - it maintains fixed dimensions
+}
+closeInspectorBtn.addEventListener('click', ()=> showInspector(false));
+toggleInspectorBtn.addEventListener('click', ()=> showInspector(inspector.hidden));
 
-    /* ================= Prevent horizontal two-finger swipe/back ================= */
-    canvasWrap.addEventListener('wheel', (e) => {
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) e.preventDefault();
-    }, { passive: false });
+/* ================= Prevent horizontal two-finger swipe/back ================= */
+canvasWrap.addEventListener('wheel', (e) => {
+  if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) e.preventDefault();
+}, { passive: false });
 
-    (function guardHistory(){
-      try {
-        history.pushState(null, '', location.href);
-        window.addEventListener('popstate', () => history.pushState(null, '', location.href));
-      } catch(_) {}
-    })();
+(function guardHistory(){
+  try {
+    history.pushState(null, '', location.href);
+    window.addEventListener('popstate', () => history.pushState(null, '', location.href));
+  } catch(_) {}
+})();
 
-    /* ================= Undo / Redo ================= */
-    const undoStack = [];
-    const redoStack = [];
-    function snapshot() {
-      return {
+/* ================= Undo / Redo ================= */
+const undoStack = [];
+const redoStack = [];
+function snapshot() {
+  return {
         // NOTE: The saved canvas dimensions are now based on the last known size, 
         // but the board is now dynamically sized.
         canvas: { w: canvas.width, h: canvas.height, bg: canvasBg }, 
-        objects: objects.map(o => ({
-          id: o.id, type: o.type,
-          filename: o.filename || null,
-          text: o.text || null, bg: o.bg || null, color: o.color || null, font: o.font || null,
-          x: o.x, y: o.y, w: o.w, h: o.h, angle: o.angle, scale: o.scale,
-          shape: o.shape || 'rectangle',
-          colors: o.colors || null,
-          selectable: o.selectable !== false
-        })),
-        selectedId: selected ? selected.id : null
-      };
-    }
-    function pushUndo(){ undoStack.push(snapshot()); redoStack.length = 0; }
-    function restore(state){
-      if(!state) return;
+    objects: objects.map(o => ({
+      id: o.id, type: o.type,
+      filename: o.filename || null,
+      text: o.text || null, bg: o.bg || null, color: o.color || null, font: o.font || null,
+      x: o.x, y: o.y, w: o.w, h: o.h, angle: o.angle, scale: o.scale,
+      shape: o.shape || 'rectangle',
+      colors: o.colors || null,
+      selectable: o.selectable !== false
+    })),
+    selectedId: selected ? selected.id : null
+  };
+}
+function pushUndo(){ undoStack.push(snapshot()); redoStack.length = 0; }
+function restore(state){
+  if(!state) return;
       // NOTE: We do not restore canvas.width/height because the canvas is now responsive
       // The objects maintain their absolute coordinates
-      const byId = new Map(objects.map(o=>[o.id,o]));
-      for(const so of state.objects){
-        let o = byId.get(so.id);
-        if(!o){
-          if (so.type === 'image') o = { id: so.id, type:'image', img:null, filename:so.filename };
-          else if (so.type === 'title') o = { id: so.id, type:'title' };
-          else if (so.type === 'palette') o = { id: so.id, type:'palette' };
-          byId.set(so.id,o);
-        }
-        Object.assign(o,{
-          x:so.x,y:so.y,w:so.w,h:so.h,angle:so.angle,scale:so.scale,shape:so.shape||'rectangle',
-          selectable: so.selectable !== false
-        });
-        if(so.type==='title'){
-          o.text=so.text; o.bg=so.bg||'#ece4dc'; o.color=so.color||'#1e1e1e';
-          o.font=so.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
-        }
-        if(so.type==='palette'){ o.colors = Array.isArray(so.colors) ? so.colors : []; }
-      }
-      objects = state.objects.map(so=>byId.get(so.id)).filter(Boolean);
-      selected = objects.find(o=>o.id===state.selectedId) || null;
-      canvasBg = state.canvas.bg || '#ffffff';
-      if (bgPicker) bgPicker.value = canvasBg;
-      draw();
+  const byId = new Map(objects.map(o=>[o.id,o]));
+  for(const so of state.objects){
+    let o = byId.get(so.id);
+    if(!o){
+      if (so.type === 'image') o = { id: so.id, type:'image', img:null, filename:so.filename };
+      else if (so.type === 'title') o = { id: so.id, type:'title' };
+      else if (so.type === 'palette') o = { id: so.id, type:'palette' };
+      byId.set(so.id,o);
     }
-    function undo(){ if(!undoStack.length) return; const cur=snapshot(); const prev=undoStack.pop(); redoStack.push(cur); restore(prev); }
-    function redo(){ if(!redoStack.length) return; const cur=snapshot(); const next=redoStack.pop(); undoStack.push(cur); restore(next); }
+    Object.assign(o,{
+      x:so.x,y:so.y,w:so.w,h:so.h,angle:so.angle,scale:so.scale,shape:so.shape||'rectangle',
+      selectable: so.selectable !== false
+    });
+    if(so.type==='title'){
+      o.text=so.text; o.bg=so.bg||'#ece4dc'; o.color=so.color||'#1e1e1e';
+      o.font=so.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
+    }
+    if(so.type==='palette'){ o.colors = Array.isArray(so.colors) ? so.colors : []; }
+  }
+  objects = state.objects.map(so=>byId.get(so.id)).filter(Boolean);
+  selected = objects.find(o=>o.id===state.selectedId) || null;
+  canvasBg = state.canvas.bg || '#ffffff';
+  if (bgPicker) bgPicker.value = canvasBg;
+  draw();
+}
+function undo(){ if(!undoStack.length) return; const cur=snapshot(); const prev=undoStack.pop(); redoStack.push(cur); restore(prev); }
+function redo(){ if(!redoStack.length) return; const cur=snapshot(); const next=redoStack.pop(); undoStack.push(cur); restore(next); }
 
-    /* ================= Utilities ================= */
-    function baseName(path){ return String(path).split(/[\\/]/).pop(); }
+/* ================= Utilities ================= */
+function baseName(path){ return String(path).split(/[\\/]/).pop(); }
 
     function showSaveSuccessDialog() {
       // ... (unchanged) ...
@@ -248,7 +346,7 @@
       });
     }
 
-    function loadImage(src){
+function loadImage(src){
       return new Promise((resolve,reject)=>{ 
         const img=new Image(); 
         img.crossOrigin = 'anonymous'; 
@@ -256,9 +354,9 @@
         img.onerror=reject; 
         img.src=src; 
       });
-    }
-    async function loadWithFallback(filename){
-      const name = baseName(filename);
+}
+async function loadWithFallback(filename){
+  const name = baseName(filename);
       const candidates = [
         'http://localhost:8000/images/'+name,
         'http://localhost:8000/past_moodboards/images/'+name,
@@ -275,29 +373,29 @@
           console.warn('Failed to load image from:', url, e);
         }
       }
-      throw new Error('Image not found: '+name);
-    }
-    function toLocal(obj,x,y){
+  throw new Error('Image not found: '+name);
+}
+function toLocal(obj,x,y){
       // NOTE: Scale is now used for object size, not zoom.
-      const s=obj.scale, c=Math.cos(obj.angle), d=Math.sin(obj.angle);
-      const dx=x-(obj.x+obj.w/2), dy=y-(obj.y+obj.h/2);
-      return { x:( dx*c + dy*d)/s, y:(-dx*d + dy*c)/s };
-    }
-    function toScreen(obj,lx,ly){
+  const s=obj.scale, c=Math.cos(obj.angle), d=Math.sin(obj.angle);
+  const dx=x-(obj.x+obj.w/2), dy=y-(obj.y+obj.h/2);
+  return { x:( dx*c + dy*d)/s, y:(-dx*d + dy*c)/s };
+}
+function toScreen(obj,lx,ly){
       // NOTE: Scale is now used for object size, not zoom.
-      const s=obj.scale, c=Math.cos(obj.angle), d=Math.sin(obj.angle);
-      return { x:obj.x+obj.w/2+( lx*c - ly*d )*s, y:obj.y+obj.h/2+( lx*d + ly*c )*s };
-    }
+  const s=obj.scale, c=Math.cos(obj.angle), d=Math.sin(obj.angle);
+  return { x:obj.x+obj.w/2+( lx*c - ly*d )*s, y:obj.y+obj.h/2+( lx*d + ly*c )*s };
+}
 
-    /* ================= Shapes ================= */
-    function clipByShape(obj){
-      const hw = obj.w/2, hh = obj.h/2;
-      const shape = (obj.shape||'rectangle').toLowerCase();
-      if(shape === 'rectangle'){ ctx.rect(-hw, -hh, obj.w, obj.h); }
-      else if(shape === 'circle'){ const r = Math.min(hw, hh); ctx.ellipse(0, 0, r, r, 0, 0, Math.PI*2); }
-      else if(shape === 'oval'){ ctx.ellipse(0, 0, hw, hh, 0, 0, Math.PI*2); }
-      else { ctx.rect(-hw, -hh, obj.w, obj.h); }
-    }
+/* ================= Shapes ================= */
+function clipByShape(obj){
+  const hw = obj.w/2, hh = obj.h/2;
+  const shape = (obj.shape||'rectangle').toLowerCase();
+  if(shape === 'rectangle'){ ctx.rect(-hw, -hh, obj.w, obj.h); }
+  else if(shape === 'circle'){ const r = Math.min(hw, hh); ctx.ellipse(0, 0, r, r, 0, 0, Math.PI*2); }
+  else if(shape === 'oval'){ ctx.ellipse(0, 0, hw, hh, 0, 0, Math.PI*2); }
+  else { ctx.rect(-hw, -hh, obj.w, obj.h); }
+}
 
     function clipByShapeForContext(context, obj){
       const hw = obj.w/2, hh = obj.h/2;
@@ -308,143 +406,143 @@
       else { context.rect(-hw, -hh, obj.w, obj.h); }
     }
 
-    /* ================= Drawing ================= */
-    function draw(){
-      // Clear & fill the background first
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.save();
-      ctx.fillStyle = canvasBg || '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.restore();
+/* ================= Drawing ================= */
+function draw(){
+  // Clear & fill the background first
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.save();
+  ctx.fillStyle = canvasBg || '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
 
-      for(const obj of objects){
-        ctx.save();
-        ctx.translate(obj.x+obj.w/2, obj.y+obj.h/2);
-        ctx.rotate(obj.angle);
+  for(const obj of objects){
+    ctx.save();
+    ctx.translate(obj.x+obj.w/2, obj.y+obj.h/2);
+    ctx.rotate(obj.angle);
         ctx.scale(obj.scale, obj.scale); // Scale is now relative to the object's base size
 
-        if(obj.type==='palette'){
-          const gap = 8, inset = 10;
-          const usableW = obj.w - 2*inset, usableH = obj.h - 2*inset;
-          const n = Math.max(1, (obj.colors||[]).length);
-          const swH = Math.floor((usableH - gap*(n-1)) / n);
-          let y = -obj.h/2 + inset;
-          for (let i=0;i<n;i++){
-            const c = obj.colors[i] || [200,200,200];
-            ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
-            ctx.fillRect(-obj.w/2 + inset, y, usableW, swH);
-            y += swH + gap;
-          }
-        }
-        else if(obj.type==='image' && obj.img){
-          ctx.save(); ctx.beginPath(); clipByShape(obj); ctx.clip();
-          ctx.drawImage(obj.img, -obj.w/2, -obj.h/2, obj.w, obj.h);
-          ctx.restore();
-        }
-        else if(obj.type==='title'){
-          ctx.fillStyle = obj.bg || '#ece4dc';
-          roundRect(ctx, -obj.w/2, -obj.h/2, obj.w, obj.h, 10); ctx.fill();
-
-          const pad = 14;
-          let fontPx = Math.min(64, Math.max(14, obj.h - pad*2));
-          ctx.textAlign='center'; ctx.textBaseline='middle';
-          const family = obj.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
-          ctx.fillStyle = obj.color || '#1e1e1e';
-          ctx.font = `${fontPx}px ${family}`;
-          let metrics = ctx.measureText(obj.text || '');
-          // NOTE: Font scaling logic now depends on absolute sizes, which is correct
-          while(metrics.width > obj.w - pad*2 && fontPx > 10){
-            fontPx -= 1; ctx.font = `${fontPx}px ${family}`;
-            metrics = ctx.measureText(obj.text || '');
-          }
-          ctx.fillText(obj.text || '', 0, 0);
-        }
-
-        const selectable = obj.selectable !== false;
-        if(selectable && obj===selected){
-          // Control handles scale with 1/scale factor
-          ctx.lineWidth = 2/obj.scale;
-          ctx.strokeStyle = '#2b6cb0';
-          ctx.setLineDash([6/obj.scale,6/obj.scale]);
-          roundRect(ctx, -obj.w/2, -obj.h/2, obj.w, obj.h, 6/obj.scale); ctx.stroke();
-          ctx.setLineDash([]);
-
-          const hs = 8/obj.scale;
-          const pts = handlePoints(obj);
-          ctx.fillStyle='#fff'; ctx.strokeStyle='#2b6cb0';
-          for(const p of pts){ ctx.beginPath(); ctx.rect(p.x-hs/2, p.y-hs/2, hs, hs); ctx.fill(); ctx.stroke(); }
-          const rot = rotationHandleLocal(obj);
-          ctx.beginPath(); ctx.arc(rot.x, rot.y, 8/obj.scale, 0, Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(0,-obj.h/2); ctx.lineTo(rot.x,rot.y); ctx.stroke();
-        }
-        ctx.restore();
+    if(obj.type==='palette'){
+      const gap = 8, inset = 10;
+      const usableW = obj.w - 2*inset, usableH = obj.h - 2*inset;
+      const n = Math.max(1, (obj.colors||[]).length);
+      const swH = Math.floor((usableH - gap*(n-1)) / n);
+      let y = -obj.h/2 + inset;
+      for (let i=0;i<n;i++){
+        const c = obj.colors[i] || [200,200,200];
+        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.fillRect(-obj.w/2 + inset, y, usableW, swH);
+        y += swH + gap;
       }
+    }
+    else if(obj.type==='image' && obj.img){
+      ctx.save(); ctx.beginPath(); clipByShape(obj); ctx.clip();
+      ctx.drawImage(obj.img, -obj.w/2, -obj.h/2, obj.w, obj.h);
+      ctx.restore();
+    }
+    else if(obj.type==='title'){
+      ctx.fillStyle = obj.bg || '#ece4dc';
+      roundRect(ctx, -obj.w/2, -obj.h/2, obj.w, obj.h, 10); ctx.fill();
 
-      updateInspectorFields();
+      const pad = 14;
+      let fontPx = Math.min(64, Math.max(14, obj.h - pad*2));
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      const family = obj.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
+      ctx.fillStyle = obj.color || '#1e1e1e';
+      ctx.font = `${fontPx}px ${family}`;
+      let metrics = ctx.measureText(obj.text || '');
+          // NOTE: Font scaling logic now depends on absolute sizes, which is correct
+      while(metrics.width > obj.w - pad*2 && fontPx > 10){
+        fontPx -= 1; ctx.font = `${fontPx}px ${family}`;
+        metrics = ctx.measureText(obj.text || '');
+      }
+      ctx.fillText(obj.text || '', 0, 0);
     }
-    function roundRect(ctx,x,y,w,h,r){
-      const rr=Math.min(r,Math.abs(w)/2,Math.abs(h)/2);
-      ctx.beginPath();
-      ctx.moveTo(x+rr,y);
-      ctx.arcTo(x+w,y,  x+w,y+h, rr);
-      ctx.arcTo(x+w,y+h,x,  y+h, rr);
-      ctx.arcTo(x,  y+h,x,  y,   rr);
-      ctx.arcTo(x,  y,  x+w,y,   rr);
-      ctx.closePath();
+
+    const selectable = obj.selectable !== false;
+    if(selectable && obj===selected){
+          // Control handles scale with 1/scale factor
+      ctx.lineWidth = 2/obj.scale;
+      ctx.strokeStyle = '#2b6cb0';
+      ctx.setLineDash([6/obj.scale,6/obj.scale]);
+      roundRect(ctx, -obj.w/2, -obj.h/2, obj.w, obj.h, 6/obj.scale); ctx.stroke();
+      ctx.setLineDash([]);
+
+      const hs = 8/obj.scale;
+      const pts = handlePoints(obj);
+      ctx.fillStyle='#fff'; ctx.strokeStyle='#2b6cb0';
+      for(const p of pts){ ctx.beginPath(); ctx.rect(p.x-hs/2, p.y-hs/2, hs, hs); ctx.fill(); ctx.stroke(); }
+      const rot = rotationHandleLocal(obj);
+      ctx.beginPath(); ctx.arc(rot.x, rot.y, 8/obj.scale, 0, Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,-obj.h/2); ctx.lineTo(rot.x,rot.y); ctx.stroke();
     }
-    function handlePoints(obj){
-      if (obj.selectable === false) return [];
-      const hw=obj.w/2, hh=obj.h/2;
-      return [
-        {x:-hw,y:-hh},{x:0,y:-hh},{x:hw,y:-hh},
-        {x: hw,y: 0 },{x:hw,y: hh},
-        {x:  0,y: hh},{x:-hw,y: hh},{x:-hw,y:0},
-      ];
-    }
-    function rotationHandleLocal(obj){ return {x:0, y:-(obj.h/2+30)}; }
+    ctx.restore();
+  }
+
+  updateInspectorFields();
+}
+function roundRect(ctx,x,y,w,h,r){
+  const rr=Math.min(r,Math.abs(w)/2,Math.abs(h)/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr,y);
+  ctx.arcTo(x+w,y,  x+w,y+h, rr);
+  ctx.arcTo(x+w,y+h,x,  y+h, rr);
+  ctx.arcTo(x,  y+h,x,  y,   rr);
+  ctx.arcTo(x,  y,  x+w,y,   rr);
+  ctx.closePath();
+}
+function handlePoints(obj){
+  if (obj.selectable === false) return [];
+  const hw=obj.w/2, hh=obj.h/2;
+  return [
+    {x:-hw,y:-hh},{x:0,y:-hh},{x:hw,y:-hh},
+    {x: hw,y: 0 },{x:hw,y: hh},
+    {x:  0,y: hh},{x:-hw,y: hh},{x:-hw,y:0},
+  ];
+}
+function rotationHandleLocal(obj){ return {x:0, y:-(obj.h/2+30)}; }
 
     /* ================= Hit Testing (REMOVED ZOOM AWARENESS) ================= */
-    function getCanvasMouse(e){
-      const rect = canvas.getBoundingClientRect();
+function getCanvasMouse(e){
+  const rect = canvas.getBoundingClientRect();
       // Mouse coordinates are now relative to the canvas's physical size
       const x = (e.clientX - rect.left) * (canvas.width / rect.width);
       const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-      return {x,y};
-    }
-    function hitTestScreen(e){
-      const {x,y} = getCanvasMouse(e);
-      for(let i=objects.length-1;i>=0;i--){
-        const obj=objects[i];
-        if (obj.selectable === false) continue;
+  return {x,y};
+}
+function hitTestScreen(e){
+  const {x,y} = getCanvasMouse(e);
+  for(let i=objects.length-1;i>=0;i--){
+    const obj=objects[i];
+    if (obj.selectable === false) continue;
 
         // Hit tests must be updated since there is no visual scale (currentZoom=1)
-        const rLoc=rotationHandleLocal(obj), rScr=toScreen(obj,rLoc.x,rLoc.y);
+    const rLoc=rotationHandleLocal(obj), rScr=toScreen(obj,rLoc.x,rLoc.y);
         // Hitbox size (12px) is now absolute on screen
-        if((x-rScr.x)**2+(y-rScr.y)**2 <= (12)**2) return {obj,hit:{type:'rotate'}};
+    if((x-rScr.x)**2+(y-rScr.y)**2 <= (12)**2) return {obj,hit:{type:'rotate'}};
 
-        const pts=handlePoints(obj).map(p=>toScreen(obj,p.x,p.y));
-        for(let h=0;h<pts.length;h++){
-          const p=pts[h];
+    const pts=handlePoints(obj).map(p=>toScreen(obj,p.x,p.y));
+    for(let h=0;h<pts.length;h++){
+      const p=pts[h];
           // Hitbox size (8px) is now absolute on screen
-          if(Math.abs(x-p.x)<=8 && Math.abs(y-p.y)<=8) return {obj,hit:{type:'scale',index:h}};
-        }
-
-        const lp=toLocal(obj,x,y);
-        if(lp.x>=-obj.w/2 && lp.x<=obj.w/2 && lp.y>=-obj.h/2 && lp.y<=obj.h/2) return {obj,hit:{type:'move'}};
-      }
-      return {obj:null,hit:null};
+      if(Math.abs(x-p.x)<=8 && Math.abs(y-p.y)<=8) return {obj,hit:{type:'scale',index:h}};
     }
 
-    /* ================= Interaction ================= */
-    canvas.addEventListener('mousedown',(e)=>{
-      const {obj,hit}=hitTestScreen(e);
-      pushUndo();
-      selected=obj; dragMode=hit?hit.type:null; lastMouse=getCanvasMouse(e);
+    const lp=toLocal(obj,x,y);
+    if(lp.x>=-obj.w/2 && lp.x<=obj.w/2 && lp.y>=-obj.h/2 && lp.y<=obj.h/2) return {obj,hit:{type:'move'}};
+  }
+  return {obj:null,hit:null};
+}
 
-      if(selected){ const i=objects.indexOf(selected); objects.splice(i,1); objects.push(selected); }
-      showInspector(!!selected);
-      draw();
-    });
+/* ================= Interaction ================= */
+canvas.addEventListener('mousedown',(e)=>{
+  const {obj,hit}=hitTestScreen(e);
+  pushUndo();
+  selected=obj; dragMode=hit?hit.type:null; lastMouse=getCanvasMouse(e);
+
+  if(selected){ const i=objects.indexOf(selected); objects.splice(i,1); objects.push(selected); }
+  showInspector(!!selected);
+  draw();
+});
 
     // Throttle draw calls to prevent stuttering
     let drawTimeout = null;
@@ -456,20 +554,20 @@
       });
     }
 
-    window.addEventListener('mousemove',(e)=>{
-      if(!selected || !dragMode) return;
-      const pt = getCanvasMouse(e);
+window.addEventListener('mousemove',(e)=>{
+  if(!selected || !dragMode) return;
+  const pt = getCanvasMouse(e);
 
-      if(dragMode==='move'){ selected.x += pt.x-lastMouse.x; selected.y += pt.y-lastMouse.y; }
-      else if(dragMode==='rotate'){
-        const cx=selected.x+selected.w/2, cy=selected.y+selected.h/2;
-        selected.angle=Math.atan2(pt.y-cy,pt.x-cx)-Math.PI/2;
-      }
-      else if(dragMode==='scale'){
-        const lp=toLocal(selected, pt.x, pt.y);
-        const s=Math.max(0.05, Math.max(Math.abs(lp.x)/(selected.w/2), Math.abs(lp.y)/(selected.h/2)));
-        selected.scale=s;
-      }
+  if(dragMode==='move'){ selected.x += pt.x-lastMouse.x; selected.y += pt.y-lastMouse.y; }
+  else if(dragMode==='rotate'){
+    const cx=selected.x+selected.w/2, cy=selected.y+selected.h/2;
+    selected.angle=Math.atan2(pt.y-cy,pt.x-cx)-Math.PI/2;
+  }
+  else if(dragMode==='scale'){
+    const lp=toLocal(selected, pt.x, pt.y);
+    const s=Math.max(0.05, Math.max(Math.abs(lp.x)/(selected.w/2), Math.abs(lp.y)/(selected.h/2)));
+    selected.scale=s;
+  }
 
       lastMouse=pt; 
       throttledDraw();
@@ -485,44 +583,44 @@
       draw();
     });
 
-    /* ==================== Prevent inspector from triggering canvas hotkeys ==================== */
-    function isEditingUI(e) {
-      const t = e && e.target ? e.target : document.activeElement;
-      if (!t) return false;
-      if (t === titleEditor) return true;
-      if (t.isContentEditable) return true;
-      const tag = (t.tagName || '').toUpperCase();
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-      if (t.closest && t.closest('#inspector')) return true;
-      return false;
-    }
+/* ==================== Prevent inspector from triggering canvas hotkeys ==================== */
+function isEditingUI(e) {
+  const t = e && e.target ? e.target : document.activeElement;
+  if (!t) return false;
+  if (t === titleEditor) return true;
+  if (t.isContentEditable) return true;
+  const tag = (t.tagName || '').toUpperCase();
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (t.closest && t.closest('#inspector')) return true;
+  return false;
+}
 
-    document.addEventListener('keydown',(e)=>{
-      if (isEditingUI(e)) return;
+document.addEventListener('keydown',(e)=>{
+  if (isEditingUI(e)) return;
 
-      if((e.ctrlKey||e.metaKey) && !e.shiftKey && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); showInspector(!!selected); return; }
-      if((e.ctrlKey||e.metaKey) && (e.key.toLowerCase()==='y' || (e.shiftKey && e.key.toLowerCase()==='z'))){ e.preventDefault(); redo(); showInspector(!!selected); return; }
+  if((e.ctrlKey||e.metaKey) && !e.shiftKey && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); showInspector(!!selected); return; }
+  if((e.ctrlKey||e.metaKey) && (e.key.toLowerCase()==='y' || (e.shiftKey && e.key.toLowerCase()==='z'))){ e.preventDefault(); redo(); showInspector(!!selected); return; }
 
-      if(!selected) return;
-      if(e.key==='Delete' || e.key==='Backspace'){
-        e.preventDefault();
-        pushUndo();
-        objects = objects.filter(o=>o!==selected);
-        selected = null;
-        showInspector(false);
-        draw();
-      }
-    });
+  if(!selected) return;
+  if(e.key==='Delete' || e.key==='Backspace'){
+    e.preventDefault();
+    pushUndo();
+    objects = objects.filter(o=>o!==selected);
+    selected = null;
+    showInspector(false);
+    draw();
+  }
+});
 
-    document.getElementById('inspector').addEventListener('keydown', (e) => { e.stopPropagation(); });
+document.getElementById('inspector').addEventListener('keydown', (e) => { e.stopPropagation(); });
 
-    /* ================= Title Inline (optional) ================= */
-    function startTitleEdit(obj){
-      if (obj.type!=='title') return;
+/* ================= Title Inline (optional) ================= */
+function startTitleEdit(obj){
+  if (obj.type!=='title') return;
       // NOTE: Coordinates are now absolute canvas coordinates
-      const pts=[toScreen(obj,-obj.w/2,-obj.h/2),toScreen(obj,obj.w/2,-obj.h/2),toScreen(obj,obj.w/2,obj.h/2),toScreen(obj,-obj.w/2,obj.h/2)];
-      const minX=Math.min(...pts.map(p=>p.x)), maxX=Math.max(...pts.map(p=>p.x));
-      const minY=Math.min(...pts.map(p=>p.y)), maxY=Math.max(...pts.map(p=>p.y));
+  const pts=[toScreen(obj,-obj.w/2,-obj.h/2),toScreen(obj,obj.w/2,-obj.h/2),toScreen(obj,obj.w/2,obj.h/2),toScreen(obj,-obj.w/2,obj.h/2)];
+  const minX=Math.min(...pts.map(p=>p.x)), maxX=Math.max(...pts.map(p=>p.x));
+  const minY=Math.min(...pts.map(p=>p.y)), maxY=Math.max(...pts.map(p=>p.y));
       
       // Calculate scaling factor from canvas size to screen size
       const rect = canvas.getBoundingClientRect();
@@ -533,65 +631,65 @@
       titleEditor.style.top =(minY*scaleY+rect.top)+'px';
       titleEditor.style.width =Math.max(50,(maxX-minX)*scaleX-8)+'px';
       titleEditor.style.height=Math.max(24,(maxY-minY)*scaleY-8)+'px';
-      titleEditor.value=obj.text||''; titleEditor.style.display='block'; titleEditor.focus(); titleEditor.select();
+  titleEditor.value=obj.text||''; titleEditor.style.display='block'; titleEditor.focus(); titleEditor.select();
 
-      const commit=()=>{ pushUndo(); obj.text=titleEditor.value; titleEditor.style.display='none'; titleEditor.onblur=null; titleEditor.onkeydown=null; draw(); updateInspectorFields(); };
-      titleEditor.onblur=commit;
-      titleEditor.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); commit(); } if(ev.key==='Escape'){ titleEditor.style.display='none'; } };
-    }
+  const commit=()=>{ pushUndo(); obj.text=titleEditor.value; titleEditor.style.display='none'; titleEditor.onblur=null; titleEditor.onkeydown=null; draw(); updateInspectorFields(); };
+  titleEditor.onblur=commit;
+  titleEditor.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); commit(); } if(ev.key==='Escape'){ titleEditor.style.display='none'; } };
+}
 
-    /* ==================== JSON: reusable apply + file input + preload ==================== */
-    async function applyJson(data){
+/* ==================== JSON: reusable apply + file input + preload ==================== */
+async function applyJson(data){
       // NOTE: Ignoring saved canvas size, as the board is now responsive.
       // Objects are loaded at their original coordinates.
 
-      objects = [];
+  objects = [];
 
-      // Palette (non-selectable)
-      if (data.palette && Array.isArray(data.palette.colors) && data.palette.strip) {
-        const s = data.palette.strip;
-        objects.push({
-          id: nextId++,
-          type: 'palette',
-          x: s[0], y: s[1],
-          w: (s[2]-s[0]), h: (s[3]-s[1]),
-          angle: 0, scale: 1,
-          colors: data.palette.colors,
-          selectable: false
-        });
-      }
+  // Palette (non-selectable)
+  if (data.palette && Array.isArray(data.palette.colors) && data.palette.strip) {
+    const s = data.palette.strip;
+    objects.push({
+      id: nextId++,
+      type: 'palette',
+      x: s[0], y: s[1],
+      w: (s[2]-s[0]), h: (s[3]-s[1]),
+      angle: 0, scale: 1,
+      colors: data.palette.colors,
+      selectable: false
+    });
+  }
 
-      // Title
-      if(data.title && data.title.strip){
-        const s=data.title.strip;
-        objects.push({
-          id:nextId++, type:'title',
-          text:data.title.text||'Title',
-          x:s[0]+12, y:s[1]+8, w:(s[2]-s[0]-24), h:(s[3]-s[1]-16),
-          angle:0, scale:1,
-          bg:'#ece4dc', color:'#1e1e1e',
-          font:`"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`,
-          shape:'rectangle'
-        });
-      }
+  // Title
+  if(data.title && data.title.strip){
+    const s=data.title.strip;
+    objects.push({
+      id:nextId++, type:'title',
+      text:data.title.text||'Title',
+      x:s[0]+12, y:s[1]+8, w:(s[2]-s[0]-24), h:(s[3]-s[1]-16),
+      angle:0, scale:1,
+      bg:'#ece4dc', color:'#1e1e1e',
+      font:`"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`,
+      shape:'rectangle'
+    });
+  }
 
       // Images - handle both old format (data.images) and new format (data.objects)
       // (The object coordinates are preserved as absolute values)
-      if(Array.isArray(data.images)){
-        for(const m of data.images){
-          if(!m.filename) continue;
-          const name=baseName(m.filename);
-          let img=null; try{ img=await loadWithFallback(name); }catch(err){ console.warn('Failed to load image:', name, err); }
-          objects.push({
-            id:nextId++, type:'image',
-            img, filename:name,
+  if(Array.isArray(data.images)){
+    for(const m of data.images){
+      if(!m.filename) continue;
+      const name=baseName(m.filename);
+      let img=null; try{ img=await loadWithFallback(name); }catch(err){ console.warn('Failed to load image:', name, err); }
+      objects.push({
+        id:nextId++, type:'image',
+        img, filename:name,
             // NOTE: The saved coordinates are now the absolute coordinates on the new canvas
-            x:m.x, y:m.y, w:m.w*m.scale, h:m.h*m.scale,
-            angle:0, scale:1,
-            shape: (m.shape || 'rectangle')
-          });
-        }
-      }
+        x:m.x, y:m.y, w:m.w*m.scale, h:m.h*m.scale,
+        angle:0, scale:1,
+        shape: (m.shape || 'rectangle')
+      });
+    }
+  }
       
       // Handle new format with objects array
       if(Array.isArray(data.objects)){
@@ -634,33 +732,52 @@
         }
       }
 
-      selected = null;
-      showInspector(false);
+  selected = null;
+  showInspector(false);
       undoStack.length=0; redoStack.length=0; pushUndo(); 
       draw();
-      resizeCanvas();
-    }
+      setupCanvas(); // Use fixed canvas setup instead of dynamic resize
+      
+      // Auto-fit the moodboard content to the canvas after images load
+      setTimeout(() => {
+        // Wait for all images to load before fitting
+        const imagePromises = objects.filter(obj => obj.type === 'image' && obj.img).map(obj => {
+          return new Promise((resolve) => {
+            if (obj.img.complete) {
+              resolve();
+            } else {
+              obj.img.onload = resolve;
+              obj.img.onerror = resolve; // Resolve even on error to not block
+            }
+          });
+        });
+        
+        Promise.all(imagePromises).then(() => {
+          fitMoodboardToCanvas();
+        });
+      }, 200);
+}
 
-    /* File input -> applyJson */
-    document.getElementById('jsonInput').addEventListener('change', async (e)=>{
-      const file = e.target.files[0]; if(!file) return;
-      const text = await file.text(); const data = JSON.parse(text);
-      await applyJson(data);
-    });
+/* File input -> applyJson */
+document.getElementById('jsonInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  const text = await file.text(); const data = JSON.parse(text);
+  await applyJson(data);
+});
 
     /* Auto-load organized moodboard data from localStorage if available */
-    window.addEventListener('load', async () => {
+window.addEventListener('load', async () => {
       // ... (unchanged) ...
       const organizedData = localStorage.getItem('organizedMoodboardData');
       if (organizedData) {
         try {
           console.log('Loading organized moodboard data from localStorage');
           const data = JSON.parse(organizedData);
-          await applyJson(data);
+    await applyJson(data);
           
           localStorage.removeItem('organizedMoodboardData');
           return;
-        } catch (err) {
+  } catch (err) {
           console.warn('Failed to load organized moodboard data:', err);
           localStorage.removeItem('organizedMoodboardData');
         }
@@ -674,15 +791,15 @@
       undoStack.length = 0;
       redoStack.length = 0;
       pushUndo();
-      draw();
-      
-      resizeCanvas();
+  draw();
+
+      setupCanvas();
     });
-    /* ================= Save (PNG + JSON) ================= */
+/* ================= Save (PNG + JSON) ================= */
     document.getElementById('saveBtn').addEventListener('click', async ()=>{
       try {
         // NOTE: Snapshot now saves the current, dynamic canvas size
-        const data = snapshot();
+  const data = snapshot();
         
         const canvas = document.getElementById('board');
         
@@ -722,90 +839,90 @@
     });
 
     /* ================= Inspector Panel Logic (UNCHANGED) ================= */
-    const panelTitle = document.getElementById('panelTitle');
-    const objTypeEl = document.getElementById('objType');
-    const objFilenameEl = document.getElementById('objFilename');
-    const commonSection = document.getElementById('commonSection');
-    const titleSection = document.getElementById('titleSection');
-    const paletteSection = document.getElementById('paletteSection');
+const panelTitle = document.getElementById('panelTitle');
+const objTypeEl = document.getElementById('objType');
+const objFilenameEl = document.getElementById('objFilename');
+const commonSection = document.getElementById('commonSection');
+const titleSection = document.getElementById('titleSection');
+const paletteSection = document.getElementById('paletteSection');
 
-    const inpX = document.getElementById('inpX');
-    const inpY = document.getElementById('inpY');
-    const inpW = document.getElementById('inpW');
-    const inpH = document.getElementById('inpH');
-    const inpScale = document.getElementById('inpScale');
-    const inpRot = document.getElementById('inpRot');
-    const inpShape = document.getElementById('inpShape');
+const inpX = document.getElementById('inpX');
+const inpY = document.getElementById('inpY');
+const inpW = document.getElementById('inpW');
+const inpH = document.getElementById('inpH');
+const inpScale = document.getElementById('inpScale');
+const inpRot = document.getElementById('inpRot');
+const inpShape = document.getElementById('inpShape');
 
-    const inpTitleText = document.getElementById('inpTitleText');
-    const inpTitleColor = document.getElementById('inpTitleColor');
-    const inpTitleBG = document.getElementById('inpTitleBG');
-    const inpTitleFont = document.getElementById('inpTitleFont');
+const inpTitleText = document.getElementById('inpTitleText');
+const inpTitleColor = document.getElementById('inpTitleColor');
+const inpTitleBG = document.getElementById('inpTitleBG');
+const inpTitleFont = document.getElementById('inpTitleFont');
 
-    function updateInspectorFields(){
-      if(!selected || inspector.hidden) return;
-      panelTitle.textContent = `Inspector — ${selected.type}`;
-      objTypeEl.textContent = selected.type;
-      objFilenameEl.textContent = selected.filename || '—';
+function updateInspectorFields(){
+  if(!selected || inspector.hidden) return;
+  panelTitle.textContent = `Inspector — ${selected.type}`;
+  objTypeEl.textContent = selected.type;
+  objFilenameEl.textContent = selected.filename || '—';
 
-      inpX.value = Math.round(selected.x);
-      inpY.value = Math.round(selected.y);
-      inpW.value = Math.round(selected.w);
-      inpH.value = Math.round(selected.h);
-      inpScale.value = Number(selected.scale.toFixed(2));
-      inpRot.value = Math.round(selected.angle * 180 / Math.PI);
+  inpX.value = Math.round(selected.x);
+  inpY.value = Math.round(selected.y);
+  inpW.value = Math.round(selected.w);
+  inpH.value = Math.round(selected.h);
+  inpScale.value = Number(selected.scale.toFixed(2));
+  inpRot.value = Math.round(selected.angle * 180 / Math.PI);
 
-      if (selected.type === 'image') {
-        document.getElementById('shapeRow').style.display = '';
-        inpShape.value = (selected.shape || 'rectangle');
-      } else {
-        document.getElementById('shapeRow').style.display = 'none';
-      }
+  if (selected.type === 'image') {
+    document.getElementById('shapeRow').style.display = '';
+    inpShape.value = (selected.shape || 'rectangle');
+  } else {
+    document.getElementById('shapeRow').style.display = 'none';
+  }
 
-      titleSection.hidden = selected.type !== 'title';
-      paletteSection.hidden = selected.type !== 'palette';
+  titleSection.hidden = selected.type !== 'title';
+  paletteSection.hidden = selected.type !== 'palette';
 
-      if (selected.type === 'title') {
-        inpTitleText.value = selected.text || '';
-        inpTitleColor.value = toHexColor(selected.color || '#1e1e1e');
-        inpTitleBG.value = toHexColor(selected.bg || '#ece4dc');
-        inpTitleFont.value = selected.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
-      }
-    }
+  if (selected.type === 'title') {
+    inpTitleText.value = selected.text || '';
+    inpTitleColor.value = toHexColor(selected.color || '#1e1e1e');
+    inpTitleBG.value = toHexColor(selected.bg || '#ece4dc');
+    inpTitleFont.value = selected.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
+  }
+}
 
-    function toHexColor(v) {
-      if (!v) return '#000000';
-      if (v.startsWith('#')) return v;
-      const m = v.match(/rgb\s*\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)\s*\)/i);
-      if (m) {
-        const r = (+m[1]).toString(16).padStart(2,'0');
-        const g = (+m[2]).toString(16).padStart(2,'0');
-        const b = (+m[3]).toString(16).padStart(2,'0');
-        return `#${r}${g}${b}`;
-      }
-      return '#000000';
-    }
-    function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+function toHexColor(v) {
+  if (!v) return '#000000';
+  if (v.startsWith('#')) return v;
+  const m = v.match(/rgb\s*\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)\s*\)/i);
+  if (m) {
+    const r = (+m[1]).toString(16).padStart(2,'0');
+    const g = (+m[2]).toString(16).padStart(2,'0');
+    const b = (+m[3]).toString(16).padStart(2,'0');
+    return `#${r}${g}${b}`;
+  }
+  return '#000000';
+}
+function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
 
-    function bindCommonInputs(){
-      function commit(fn){ if(!selected) return; pushUndo(); fn(); draw(); }
-      inpX.addEventListener('change', ()=> commit(()=> selected.x = +inpX.value));
-      inpY.addEventListener('change', ()=> commit(()=> selected.y = +inpY.value));
-      inpW.addEventListener('change', ()=> commit(()=> selected.w = Math.max(1, +inpW.value)));
-      inpH.addEventListener('change', ()=> commit(()=> selected.h = Math.max(1, +inpH.value)));
-      inpScale.addEventListener('change', ()=> commit(()=> selected.scale = clamp(+inpScale.value, 0.05, 100)));
-      inpRot.addEventListener('change', ()=> commit(()=> selected.angle = (+inpRot.value) * Math.PI / 180));
-      inpShape.addEventListener('change', ()=> commit(()=> selected.shape = inpShape.value));
-    }
-    function bindTitleInputs(){
-      function commit(fn){ if(!selected || selected.type!=='title') return; pushUndo(); fn(); draw(); }
-      inpTitleText.addEventListener('input', ()=> commit(()=> selected.text = inpTitleText.value));
-      inpTitleColor.addEventListener('change', ()=> commit(()=> selected.color = inpTitleColor.value));
-      inpTitleBG.addEventListener('change', ()=> commit(()=> selected.bg = inpTitleBG.value));
-      inpTitleFont.addEventListener('change', ()=> commit(()=> selected.font = inpTitleFont.value));
-    }
-    bindCommonInputs();
-    bindTitleInputs();
+function bindCommonInputs(){
+  function commit(fn){ if(!selected) return; pushUndo(); fn(); draw(); }
+  inpX.addEventListener('change', ()=> commit(()=> selected.x = +inpX.value));
+  inpY.addEventListener('change', ()=> commit(()=> selected.y = +inpY.value));
+  inpW.addEventListener('change', ()=> commit(()=> selected.w = Math.max(1, +inpW.value)));
+  inpH.addEventListener('change', ()=> commit(()=> selected.h = Math.max(1, +inpH.value)));
+  inpScale.addEventListener('change', ()=> commit(()=> selected.scale = clamp(+inpScale.value, 0.05, 100)));
+  inpRot.addEventListener('change', ()=> commit(()=> selected.angle = (+inpRot.value) * Math.PI / 180));
+  inpShape.addEventListener('change', ()=> commit(()=> selected.shape = inpShape.value));
+}
+function bindTitleInputs(){
+  function commit(fn){ if(!selected || selected.type!=='title') return; pushUndo(); fn(); draw(); }
+  inpTitleText.addEventListener('input', ()=> commit(()=> selected.text = inpTitleText.value));
+  inpTitleColor.addEventListener('change', ()=> commit(()=> selected.color = inpTitleColor.value));
+  inpTitleBG.addEventListener('change', ()=> commit(()=> selected.bg = inpTitleBG.value));
+  inpTitleFont.addEventListener('change', ()=> commit(()=> selected.font = inpTitleFont.value));
+}
+bindCommonInputs();
+bindTitleInputs();
 
     /* ================= Back to Home Button ================= */
     document.getElementById('backToHomeBtn').addEventListener('click', () => {
@@ -817,7 +934,7 @@
         window.location.href = 'homepage.html';
       }
     });
-  </script>
+</script>
   <style>
     header {
       text-align: center;
@@ -865,7 +982,7 @@
       display:flex; 
       justify-content:center; 
       align-items:center;
-      overflow:hidden; /* Prevents scrollbars on the wrap, relying on canvas resize */
+      overflow:hidden; /* Prevents scrollbars */
       border-radius: 8px;
       padding: 8px; /* Padding for canvasWrap */
       overscroll-behavior: contain;
@@ -875,13 +992,12 @@
       position: relative; /* Needed for title editor positioning */
     }
     
-    /* NEW: Canvas styles to fill 100% of its parent's content box */
+    /* Fixed canvas dimensions with proper scaling */
     canvas { 
-        width: 100%; 
-        height: 100%;
         background:#fff; 
         border:1px solid var(--border); 
-        display:block; 
+        display:block;
+        /* Canvas dimensions are set via JavaScript */
     }
 
     .panel {

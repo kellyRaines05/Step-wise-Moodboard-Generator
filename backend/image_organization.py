@@ -163,7 +163,7 @@ class ImageOrganization:
 
         # Main images
         for m, im in zip(metas, thumbs):
-            w, h = int(m.w * m.scale), int(m.h * m.scale)
+            w, h = int(m.w * m.scale), int(m.h * m.scale)  # Make images 50% larger
             to_paste = im.resize((w, h), Image.LANCZOS) if (w, h) != im.size else im
 
             # === apply shape mask here ===

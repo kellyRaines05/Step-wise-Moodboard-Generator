@@ -100,6 +100,20 @@ def organize_moodboard(title: TitleResponse):
     json_data = ORGANIZER.organize_images()
     return {"json_data": json_data}
 
+@app.post("/api/clear_images")
+def clear_images() -> StatusResponse:
+    """Clear all images from the images directory"""
+    try:
+        # Clear all existing images
+        for file in os.listdir(MOODBOARD_IMAGE_DIR):
+            if file.startswith("image_") and file.endswith(".png"):
+                os.remove(os.path.join(MOODBOARD_IMAGE_DIR, file))
+        print(f"Cleared all images from {MOODBOARD_IMAGE_DIR}")
+        return StatusResponse(status_code=200, detail="Images cleared successfully")
+    except Exception as e:
+        print(f"Error clearing images: {e}")
+        return StatusResponse(status_code=500, detail=str(e))
+
 @app.post("/api/save_moodboard")
 async def save_moodboard(
     json_data: str = Form(...),
