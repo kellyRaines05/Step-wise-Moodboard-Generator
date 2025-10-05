@@ -80,15 +80,6 @@ def get_moodboard_iamges(keyword: ImageRequest) -> ImagesResponse:
 
 @app.post("/api/download_images")
 def download_images(images: DownloadRequest) -> StatusResponse:
-    # Clear all existing images before downloading new ones
-    try:
-        for file in os.listdir(MOODBOARD_IMAGE_DIR):
-            if file.startswith("image_") and file.endswith(".png"):
-                os.remove(os.path.join(MOODBOARD_IMAGE_DIR, file))
-        print(f"Cleared existing images from {MOODBOARD_IMAGE_DIR}")
-    except Exception as e:
-        print(f"Warning: Could not clear existing images: {e}")
-    
     # Download new images
     for i, image_url in enumerate(images.images):
         try:
