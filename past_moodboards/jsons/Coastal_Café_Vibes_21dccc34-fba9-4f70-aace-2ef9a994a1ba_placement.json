@@ -1,18 +1,18 @@
 {
   "canvas": {
-    "w": 1600,
-    "h": 1000,
+    "w": 1200,
+    "h": 800,
     "bg": "#ffffff"
   },
   "objects": [
     {
       "id": 1,
       "type": "title",
-      "text": "**Gaming Studio Vibe**",
+      "text": "Coastal Café Vibes",
       "x": 6,
       "y": 2,
-      "w": 1588,
-      "h": 168,
+      "w": 1188,
+      "h": 132,
       "angle": 0,
       "scale": 1,
       "bg": "#ece4dc",
@@ -30,38 +30,38 @@
       "bg": null,
       "color": null,
       "font": null,
-      "x": 1350,
-      "y": 186,
-      "w": 244,
-      "h": 796,
+      "x": 1014,
+      "y": 150,
+      "w": 180,
+      "h": 632,
       "angle": 0,
       "scale": 1,
       "shape": "rectangle",
       "colors": [
         [
-          202,
-          204,
-          205
+          238,
+          240,
+          244
         ],
         [
-          151,
-          130,
-          119
+          210,
+          206,
+          200
         ],
         [
-          98,
-          69,
-          59
+          190,
+          183,
+          170
         ],
         [
-          26,
-          20,
-          19
+          140,
+          132,
+          112
         ],
         [
-          7,
-          7,
-          3
+          57,
+          57,
+          49
         ]
       ],
       "selectable": false
@@ -74,12 +74,12 @@
       "bg": null,
       "color": null,
       "font": null,
-      "x": 447,
-      "y": 617,
-      "w": 577,
-      "h": 385,
+      "x": 32,
+      "y": 432,
+      "w": 251,
+      "h": 376,
       "angle": 0,
-      "scale": 1.6046926692797803,
+      "scale": 1.0465530360179531,
       "shape": "rectangle",
       "colors": null,
       "selectable": true
@@ -92,12 +92,12 @@
       "bg": null,
       "color": null,
       "font": null,
-      "x": 94,
-      "y": 284,
-      "w": 542,
-      "h": 361,
+      "x": 285,
+      "y": 373,
+      "w": 313,
+      "h": 418,
       "angle": 0,
-      "scale": 1.5072400746976906,
+      "scale": 1.1614357916375406,
       "shape": "oval",
       "colors": null,
       "selectable": true
@@ -110,12 +110,12 @@
       "bg": null,
       "color": null,
       "font": null,
-      "x": 802,
-      "y": 169,
-      "w": 544,
-      "h": 363,
+      "x": 32,
+      "y": 123,
+      "w": 256,
+      "h": 384,
       "angle": 0,
-      "scale": 1.5125512803614283,
+      "scale": 1.0683342195030274,
       "shape": "rectangle",
       "colors": null,
       "selectable": true
@@ -128,12 +128,12 @@
       "bg": null,
       "color": null,
       "font": null,
-      "x": 997,
-      "y": 470,
-      "w": 359,
-      "h": 539,
+      "x": 669,
+      "y": 328,
+      "w": 266,
+      "h": 399,
       "angle": 0,
-      "scale": 1.4978568082939465,
+      "scale": 1.1102619234726292,
       "shape": "circle",
       "colors": null,
       "selectable": true

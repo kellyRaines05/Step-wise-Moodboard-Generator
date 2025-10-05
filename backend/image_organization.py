@@ -249,8 +249,7 @@ class ImageOrganization:
                 "shape": m.shape,
                 "colors": None,
                 "selectable": True
-            })
-        
+            })    
         # Save to file
         moodboard_id = str(uuid.uuid4())
         # Sanitize title for filename (remove invalid characters)

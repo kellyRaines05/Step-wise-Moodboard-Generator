@@ -169,10 +169,18 @@ async def save_moodboard(
         
         print(f"Successfully saved moodboard: {json_filename}")
         return SavedMoodboardResponse(status="success", filename=json_filename)
-        
+
     except Exception as e:
         print(f"Error saving moodboard: {str(e)}")
         import traceback
         traceback.print_exc()
         return SavedMoodboardResponse(status="error", filename=str(e))
-
+    finally:
+        # erase images folder to prepare for the next moodboard
+        try:
+            for file in os.listdir(MOODBOARD_IMAGE_DIR):
+                if file.startswith("image_") and file.endswith(".png"):
+                    os.remove(os.path.join(MOODBOARD_IMAGE_DIR, file))
+            print(f"Cleared existing images from {MOODBOARD_IMAGE_DIR}")
+        except Exception as e:
+            print(f"Warning: Could not clear existing images: {e}")

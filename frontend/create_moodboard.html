@@ -1,996 +1,1006 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<title>Interactive Moodboard (Zoom-aware, Inspector-safe, Save + BG Color)</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>
-  :root { --ui:#2b6cb0; --panel:#ffffff; --bg:#f3f3f3; --border:#ddd; }
-  html,body { margin:0; background:var(--bg); font-family:system-ui,Segoe UI,Arial,sans-serif; }
-  .topbar {
-    display:flex; gap:12px; align-items:center; padding:12px 16px; background:#fff;
-    box-shadow:0 1px 6px rgba(0,0,0,.06); position:sticky; top:0; z-index:10; flex-wrap:wrap;
-  }
-  .hint { color:#666; font-size:13px; }
-  .layout { display:flex; align-items:flex-start; gap:12px; padding:12px; }
-  .canvasWrap {
-    flex: 1 1 auto; display:flex; justify-content:flex-start;
-    overflow:auto;
-    background: #fafafa; border: 1px solid var(--border); border-radius: 8px;
-    padding: 8px;
-    overscroll-behavior: contain;
-    touch-action: none;
-  }
-  .canvasInner { position: relative; transform-origin: top left; }
-  canvas { background:#fff; border:1px solid var(--border); display:block; }
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>MBGen - New Moodboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <div class="topbar">
+      <button id="undoBtn" title="Ctrl+Z" class="primary-btn">Undo</button>
+      <button id="redoBtn" title="Ctrl+Y / Ctrl+Shift+Z" class="primary-btn">Redo</button>
+      <label class="secondary-btn file-input-label">Load JSON <input type="file" id="jsonInput" accept=".json"></label>
+      
+      <button id="toggleInspectorBtn" class="secondary-btn">Toggle Inspector</button>
+      <label style="display:flex; align-items:center; gap:12px;">
+        Background
+        <input type="color" id="bgPicker" value="#ffffff">
+      </label>
 
-  .panel {
-    width: 320px; flex: 0 0 320px; background: var(--panel);
-    border-left:1px solid var(--border); box-shadow:0 1px 6px rgba(0,0,0,.06);
-    position:sticky; top:64px; align-self:flex-start; max-height: calc(100vh - 80px); overflow:auto;
-    border-radius: 8px;
-  }
-  .panel header {
-    padding:10px 12px; border-bottom:1px solid var(--border); font-weight:600;
-    display:flex; align-items:center; justify-content:space-between;
-  }
-  .panel .close {
-    border:none; background:transparent; font-size:18px; line-height:1; cursor:pointer; color:#666;
-  }
-  .panel section { padding:10px 12px; border-bottom:1px solid var(--border); }
-  .panel .row { display:flex; align-items:center; gap:8px; margin:8px 0; }
-  .panel label { width: 110px; font-size:13px; color:#444; }
-  .panel input[type="text"],
-  .panel input[type="number"],
-  .panel select {
-    flex:1 1 auto; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-size:14px;
-  }
-  .panel input[type="color"] { width: 48px; height: 32px; padding:0; border:1px solid var(--border); border-radius:6px; }
-  .panel .muted { color:#777; font-size:12px; }
-  button { padding:6px 10px; border:1px solid #ccc; background:#fff; border-radius:6px; cursor:pointer; }
-  button:active { transform: translateY(1px); }
-
-  #titleEditor {
-    position:absolute; z-index:20; display:none; border:1px solid var(--ui);
-    box-shadow:0 2px 10px rgba(0,0,0,.12); padding:6px 10px; background:#fff; border-radius:6px;
-    font: 24px "MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif; outline:none;
-  }
-
-  @font-face {
-    font-family: 'MoodboardTitle';
-    src: url('../fonts/BradleyHandITC.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-  }
-</style>
-</head>
-<body>
-
-<div class="topbar">
-  <label>Load JSON <input type="file" id="jsonInput" accept=".json"></label>
-  <button id="fitBtn">Fit to JSON Canvas</button>
-  <button id="toggleInspectorBtn">Toggle Inspector</button>
-  <button id="undoBtn" title="Ctrl+Z">Undo</button>
-  <button id="redoBtn" title="Ctrl+Y / Ctrl+Shift+Z">Redo</button>
-
-  <label style="display:flex; align-items:center; gap:6px;">
-    Zoom
-    <input type="range" id="zoomRange" min="20" max="120" value="45" />
-    <span id="zoomLabel">45%</span>
-  </label>
-
-  <!-- NEW: canvas background color picker -->
-  <label style="display:flex; align-items:center; gap:6px;">
-    Background
-    <input type="color" id="bgPicker" value="#ffffff">
-  </label>
-
-  <button id="saveBtn">Save (PNG + JSON)</button>
-  <button id="backToHomeBtn">Back to Home</button>
-
-  <span class="hint">Click to select • Drag to move • Drag corners to resize • Top circle to rotate • Ctrl+Z to undo</span>
-</div>
-
-<div class="layout">
-  <div class="canvasWrap" id="canvasWrap">
-    <div class="canvasInner" id="canvasInner">
-      <canvas id="board" width="1200" height="800"></canvas>
-      <input id="titleEditor" />
+      <span class="hint">Click to select • Drag to move • Drag corners to resize • Top circle to rotate • Ctrl+Z to undo</span>
     </div>
-  </div>
-
-  <aside class="panel" id="inspector" hidden>
     <header>
-      <div id="panelTitle">Inspector</div>
-      <button class="close" id="closeInspectorBtn" title="Close">&times;</button>
+      <div class="title">Finalize Moodboard!</div>
     </header>
-    <section id="commonSection">
-      <div class="row"><label>Type</label><div id="objType" class="muted">—</div></div>
-      <div class="row"><label>Filename</label><div id="objFilename" class="muted">—</div></div>
-      <div class="row"><label>X</label><input type="number" id="inpX" step="1"></div>
-      <div class="row"><label>Y</label><input type="number" id="inpY" step="1"></div>
-      <div class="row"><label>Width</label><input type="number" id="inpW" step="1" min="1"></div>
-      <div class="row"><label>Height</label><input type="number" id="inpH" step="1" min="1"></div>
-      <div class="row"><label>Scale</label><input type="number" id="inpScale" step="0.01" min="0.05"></div>
-      <div class="row"><label>Rotation°</label><input type="number" id="inpRot" step="1"></div>
-      <div class="row" id="shapeRow">
-        <label>Mask Shape</label>
-        <select id="inpShape">
-          <option value="rectangle">Rectangle</option>
-          <option value="circle">Circle</option>
-          <option value="oval">Oval</option>
-        </select>
+    
+    <div class="layout">
+      <div class="canvasWrap" id="canvasWrap">
+        <canvas id="board"></canvas>
+        <input id="titleEditor" />
       </div>
-    </section>
 
-    <section id="titleSection" hidden>
-      <div class="row"><label>Title Text</label><input type="text" id="inpTitleText" placeholder="Enter title..."></div>
-      <div class="row"><label>Text Color</label><input type="color" id="inpTitleColor"></div>
-      <div class="row"><label>Badge Color</label><input type="color" id="inpTitleBG"></div>
-      <div class="row"><label>Font Family</label>
-        <input type="text" id="inpTitleFont" placeholder='"MoodboardTitle", "Bradley Hand", Segoe UI, Arial'>
-      </div>
-      <div class="row">
-        <label></label><div class="muted">Tip: add a TTF at <code>../fonts/BradleyHandITC.ttf</code> to use the included @font-face.</div>
-      </div>
-    </section>
+      <aside class="panel" id="inspector" hidden>
+        <header>
+          <div id="panelTitle">Inspector</div>
+          <button class="close" id="closeInspectorBtn" title="Close">&times;</button>
+        </header>
+        <section id="commonSection">
+          <div class="row"><label>Type</label><div id="objType" class="muted">—</div></div>
+          <div class="row"><label>Filename</label><div id="objFilename" class="muted">—</div></div>
+          <div class="row"><label>X</label><input type="number" id="inpX" step="1"></div>
+          <div class="row"><label>Y</label><input type="number" id="inpY" step="1"></div>
+          <div class="row"><label>Width</label><input type="number" id="inpW" step="1" min="1"></div>
+          <div class="row"><label>Height</label><input type="number" id="inpH" step="1" min="1"></div>
+          <div class="row"><label>Scale</label><input type="number" id="inpScale" step="0.01" min="0.05"></div>
+          <div class="row"><label>Rotation°</label><input type="number" id="inpRot" step="1"></div>
+          <div class="row" id="shapeRow">
+            <label>Mask Shape</label>
+            <select id="inpShape">
+              <option value="rectangle">Rectangle</option>
+              <option value="circle">Circle</option>
+              <option value="oval">Oval</option>
+            </select>
+          </div>
+        </section>
 
-    <section id="paletteSection" hidden>
-      <div class="row"><label>Status</label><div class="muted">Palette is fixed (not selectable).</div></div>
-    </section>
-  </aside>
-</div>
+        <section id="titleSection" hidden>
+          <div class="row"><label>Title Text</label><input type="text" id="inpTitleText" placeholder="Enter title..."></div>
+          <div class="row"><label>Text Color</label><input type="color" id="inpTitleColor"></div>
+          <div class="row"><label>Badge Color</label><input type="color" id="inpTitleBG"></div>
+          <div class="row"><label>Font Family</label>
+            <input type="text" id="inpTitleFont" placeholder='"MoodboardTitle", "Bradley Hand", Segoe UI, Arial'>
+          </div>
+          <div class="row">
+            <label></label><div class="muted">Tip: add a TTF at <code>../fonts/BradleyHandITC.ttf</code> to use the included @font-face.</div>
+          </div>
+        </section>
 
-<script>
-/* ================= Canvas + State ================= */
-const canvas = document.getElementById('board');
-const ctx = canvas.getContext('2d');
-const titleEditor = document.getElementById('titleEditor');
-
-let objects = [];       // draw order: back -> front
-let nextId = 1;         // unique ids
-let selected = null;
-let dragMode = null;    // 'move' | 'scale' | 'rotate' | null
-let lastMouse = {x:0,y:0};
-let jsonCanvasW = canvas.width, jsonCanvasH = canvas.height;
-
-/* ===== NEW: canvas background color kept in state and controlled by picker ===== */
-const bgPicker = document.getElementById('bgPicker');
-let canvasBg = '#ffffff';
-bgPicker.addEventListener('input', () => { canvasBg = bgPicker.value; draw(); });
-
-/* ================= Zoom (visual only) ================= */
-const canvasWrap = document.getElementById('canvasWrap');
-const canvasInner = document.getElementById('canvasInner');
-const zoomRange = document.getElementById('zoomRange');
-const zoomLabel = document.getElementById('zoomLabel');
-let currentZoom = +zoomRange.value / 100;
-
-function applyZoom(z) {
-  currentZoom = z;
-  canvasInner.style.transform = `scale(${z})`;
-  zoomLabel.textContent = `${Math.round(z*100)}%`;
-}
-zoomRange.addEventListener('input', () => applyZoom(+zoomRange.value/100));
-applyZoom(currentZoom);
-
-function fitZoomForLayout(inspectorOpen){
-  const wrapRect = canvasWrap.getBoundingClientRect();
-  const margin = 24;
-  
-  // Account for title at top and palette on right
-  const titleHeight = 120; // Approximate title height
-  const paletteWidth = 200; // Approximate palette width
-  
-  // Calculate available space excluding title and palette
-  const availableWidth = wrapRect.width - margin - paletteWidth;
-  const availableHeight = wrapRect.height - margin - titleHeight;
-  
-  // Calculate zoom based on available space vs canvas size
-  const maxZ = Math.min(availableWidth / canvas.width, availableHeight / canvas.height);
-  
-  // Apply consistent zoom limits regardless of inspector state
-  const target = Math.min(0.7, Math.max(0.3, maxZ));
-  const z = isFinite(target) ? target : currentZoom;
-  const pct = Math.round(z*100);
-  zoomRange.value = String(pct);
-  applyZoom(z);
-}
-
-/* ================= Inspector Show/Hide + Safe Keys ================= */
-const inspector = document.getElementById('inspector');
-const closeInspectorBtn = document.getElementById('closeInspectorBtn');
-const toggleInspectorBtn = document.getElementById('toggleInspectorBtn');
-
-function showInspector(show){
-  inspector.hidden = !show;
-  fitZoomForLayout(show);
-}
-closeInspectorBtn.addEventListener('click', ()=> showInspector(false));
-toggleInspectorBtn.addEventListener('click', ()=> showInspector(inspector.hidden));
-
-/* ================= Prevent horizontal two-finger swipe/back ================= */
-canvasWrap.addEventListener('wheel', (e) => {
-  if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) e.preventDefault();
-}, { passive: false });
-
-(function guardHistory(){
-  try {
-    history.pushState(null, '', location.href);
-    window.addEventListener('popstate', () => history.pushState(null, '', location.href));
-  } catch(_) {}
-})();
-
-/* ================= Undo / Redo ================= */
-const undoStack = [];
-const redoStack = [];
-function snapshot() {
-  return {
-    canvas: { w: canvas.width, h: canvas.height, bg: canvasBg }, // keep background
-    objects: objects.map(o => ({
-      id: o.id, type: o.type,
-      filename: o.filename || null,
-      text: o.text || null, bg: o.bg || null, color: o.color || null, font: o.font || null,
-      x: o.x, y: o.y, w: o.w, h: o.h, angle: o.angle, scale: o.scale,
-      shape: o.shape || 'rectangle',
-      colors: o.colors || null,
-      selectable: o.selectable !== false
-    })),
-    selectedId: selected ? selected.id : null
-  };
-}
-function pushUndo(){ undoStack.push(snapshot()); redoStack.length = 0; }
-function restore(state){
-  if(!state) return;
-  const byId = new Map(objects.map(o=>[o.id,o]));
-  for(const so of state.objects){
-    let o = byId.get(so.id);
-    if(!o){
-      if (so.type === 'image') o = { id: so.id, type:'image', img:null, filename:so.filename };
-      else if (so.type === 'title') o = { id: so.id, type:'title' };
-      else if (so.type === 'palette') o = { id: so.id, type:'palette' };
-      byId.set(so.id,o);
-    }
-    Object.assign(o,{
-      x:so.x,y:so.y,w:so.w,h:so.h,angle:so.angle,scale:so.scale,shape:so.shape||'rectangle',
-      selectable: so.selectable !== false
-    });
-    if(so.type==='title'){
-      o.text=so.text; o.bg=so.bg||'#ece4dc'; o.color=so.color||'#1e1e1e';
-      o.font=so.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
-    }
-    if(so.type==='palette'){ o.colors = Array.isArray(so.colors) ? so.colors : []; }
-  }
-  objects = state.objects.map(so=>byId.get(so.id)).filter(Boolean);
-  selected = objects.find(o=>o.id===state.selectedId) || null;
-  canvas.width = state.canvas.w; canvas.height = state.canvas.h;
-  canvasBg = state.canvas.bg || '#ffffff';
-  if (bgPicker) bgPicker.value = canvasBg;
-  draw();
-}
-function undo(){ if(!undoStack.length) return; const cur=snapshot(); const prev=undoStack.pop(); redoStack.push(cur); restore(prev); }
-function redo(){ if(!redoStack.length) return; const cur=snapshot(); const next=redoStack.pop(); undoStack.push(cur); restore(next); }
-
-/* ================= Utilities ================= */
-function baseName(path){ return String(path).split(/[\\/]/).pop(); }
-
-function showSaveSuccessDialog() {
-  // Create modal overlay
-  const overlay = document.createElement('div');
-  overlay.style.cssText = `
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5); z-index: 1000; display: flex;
-    align-items: center; justify-content: center;
-  `;
-  
-  // Create dialog box
-  const dialog = document.createElement('div');
-  dialog.style.cssText = `
-    background: white; padding: 30px; border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: center;
-    max-width: 400px; width: 90%;
-  `;
-  
-  dialog.innerHTML = `
-    <h3 style="margin: 0 0 15px 0; color: #2b6cb0;">✅ Moodboard Saved Successfully!</h3>
-    <p style="margin: 0 0 25px 0; color: #666;">Your moodboard has been saved to the gallery as a compiled PNG image.</p>
-    <div style="display: flex; gap: 12px; justify-content: center;">
-      <button id="dialogBackToHomeBtn" style="
-        padding: 10px 20px; background: #2b6cb0; color: white;
-        border: none; border-radius: 6px; cursor: pointer; font-size: 14px;
-      ">Back to Home</button>
-      <button id="continueEditBtn" style="
-        padding: 10px 20px; background: #f3f3f3; color: #333;
-        border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 14px;
-      ">Continue Editing</button>
+        <section id="paletteSection" hidden>
+          <div class="row"><label>Status</label><div class="muted">Palette is fixed (not selectable).</div></div>
+        </section>
+      </aside>
     </div>
-  `;
-  
-  overlay.appendChild(dialog);
-  document.body.appendChild(overlay);
-  
-  // Handle button clicks
-  document.getElementById('dialogBackToHomeBtn').addEventListener('click', () => {
-    document.body.removeChild(overlay);
-    window.location.href = 'homepage.html';
-  });
-  
-  document.getElementById('continueEditBtn').addEventListener('click', () => {
-    document.body.removeChild(overlay);
-  });
-  
-  // Close on overlay click
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      document.body.removeChild(overlay);
+    
+    <div class="action-footer">
+        <button id="backToHomeBtn" class="back-btn">Back to Home</button>
+        <button id="saveBtn" class="primary-btn">Save</button>
+    </div>
+    
+  </body>
+  <script>
+    /* ================= Canvas + State ================= */
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+    const titleEditor = document.getElementById('titleEditor');
+
+    let objects = [];       // draw order: back -> front
+    let nextId = 1;         // unique ids
+    let selected = null;
+    let dragMode = null;    // 'move' | 'scale' | 'rotate' | null
+    let lastMouse = {x:0,y:0};
+    
+    // NOTE: These fixed values are no longer used for canvas dimensions but for object loading scale.
+    let jsonCanvasW = 1200, jsonCanvasH = 800; 
+
+    /* ===== Canvas Background ===== */
+    const bgPicker = document.getElementById('bgPicker');
+    let canvasBg = '#ffffff';
+    bgPicker.addEventListener('input', () => { canvasBg = bgPicker.value; draw(); });
+
+    /* ================= Responsive Resizing (NEW) ================= */
+    const canvasWrap = document.getElementById('canvasWrap');
+    
+    /**
+     * Sets the canvas's internal drawing buffer size (width/height attributes) 
+     * to match its actual CSS display size (clientWidth/clientHeight).
+     */
+    function resizeCanvas() {
+        const wrapRect = canvasWrap.getBoundingClientRect();
+        // Set canvas width/height attributes to match its actual display size
+        canvas.width = wrapRect.width - 16; // 16px for padding inside canvasWrap (8px on each side)
+        canvas.height = wrapRect.height - 16;
+        draw();
     }
-  });
-}
 
-function loadImage(src){
-  return new Promise((resolve,reject)=>{ 
-    const img=new Image(); 
-    img.crossOrigin = 'anonymous'; // Fix canvas tainting issue
-    img.onload=()=>resolve(img); 
-    img.onerror=reject; 
-    img.src=src; 
-  });
-}
-async function loadWithFallback(filename){
-  const name = baseName(filename);
-  const candidates = [
-    'http://localhost:8000/images/'+name,
-    'http://localhost:8000/past_moodboards/images/'+name,
-    '../images/'+name, 
-    './images/'+name
-  ];
-  for(const url of candidates){ 
-    try { 
-      console.log('Trying to load image from:', url);
-      const img = await loadImage(url); 
-      console.log('Successfully loaded image from:', url);
-      return img; 
-    } catch(e){
-      console.warn('Failed to load image from:', url, e);
+    // Call resize on initial load and window resize
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('load', resizeCanvas);
+
+
+    /* ================= Inspector Show/Hide ================= */
+    const inspector = document.getElementById('inspector');
+    const closeInspectorBtn = document.getElementById('closeInspectorBtn');
+    const toggleInspectorBtn = document.getElementById('toggleInspectorBtn');
+
+    function showInspector(show){
+      inspector.hidden = !show;
+      resizeCanvas(); // Recalculate size after inspector toggles
     }
-  }
-  throw new Error('Image not found: '+name);
-}
-function toLocal(obj,x,y){
-  const s=obj.scale, c=Math.cos(obj.angle), d=Math.sin(obj.angle);
-  const dx=x-(obj.x+obj.w/2), dy=y-(obj.y+obj.h/2);
-  return { x:( dx*c + dy*d)/s, y:(-dx*d + dy*c)/s };
-}
-function toScreen(obj,lx,ly){
-  const s=obj.scale, c=Math.cos(obj.angle), d=Math.sin(obj.angle);
-  return { x:obj.x+obj.w/2+( lx*c - ly*d )*s, y:obj.y+obj.h/2+( lx*d + ly*c )*s };
-}
+    closeInspectorBtn.addEventListener('click', ()=> showInspector(false));
+    toggleInspectorBtn.addEventListener('click', ()=> showInspector(inspector.hidden));
 
-/* ================= Shapes ================= */
-function clipByShape(obj){
-  const hw = obj.w/2, hh = obj.h/2;
-  const shape = (obj.shape||'rectangle').toLowerCase();
-  if(shape === 'rectangle'){ ctx.rect(-hw, -hh, obj.w, obj.h); }
-  else if(shape === 'circle'){ const r = Math.min(hw, hh); ctx.ellipse(0, 0, r, r, 0, 0, Math.PI*2); }
-  else if(shape === 'oval'){ ctx.ellipse(0, 0, hw, hh, 0, 0, Math.PI*2); }
-  else { ctx.rect(-hw, -hh, obj.w, obj.h); }
-}
+    /* ================= Prevent horizontal two-finger swipe/back ================= */
+    canvasWrap.addEventListener('wheel', (e) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) e.preventDefault();
+    }, { passive: false });
 
-function clipByShapeForContext(context, obj){
-  const hw = obj.w/2, hh = obj.h/2;
-  const shape = (obj.shape||'rectangle').toLowerCase();
-  if(shape === 'rectangle'){ context.rect(-hw, -hh, obj.w, obj.h); }
-  else if(shape === 'circle'){ const r = Math.min(hw, hh); context.ellipse(0, 0, r, r, 0, 0, Math.PI*2); }
-  else if(shape === 'oval'){ context.ellipse(0, 0, hw, hh, 0, 0, Math.PI*2); }
-  else { context.rect(-hw, -hh, obj.w, obj.h); }
-}
+    (function guardHistory(){
+      try {
+        history.pushState(null, '', location.href);
+        window.addEventListener('popstate', () => history.pushState(null, '', location.href));
+      } catch(_) {}
+    })();
 
-/* ================= Drawing ================= */
-function draw(){
-  // Clear & fill the background first
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.save();
-  ctx.fillStyle = canvasBg || '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.restore();
-
-  for(const obj of objects){
-    ctx.save();
-    ctx.translate(obj.x+obj.w/2, obj.y+obj.h/2);
-    ctx.rotate(obj.angle);
-    ctx.scale(obj.scale, obj.scale);
-
-    if(obj.type==='palette'){
-      const gap = 8, inset = 10;
-      const usableW = obj.w - 2*inset, usableH = obj.h - 2*inset;
-      const n = Math.max(1, (obj.colors||[]).length);
-      const swH = Math.floor((usableH - gap*(n-1)) / n);
-      let y = -obj.h/2 + inset;
-      for (let i=0;i<n;i++){
-        const c = obj.colors[i] || [200,200,200];
-        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
-        ctx.fillRect(-obj.w/2 + inset, y, usableW, swH);
-        y += swH + gap;
+    /* ================= Undo / Redo ================= */
+    const undoStack = [];
+    const redoStack = [];
+    function snapshot() {
+      return {
+        // NOTE: The saved canvas dimensions are now based on the last known size, 
+        // but the board is now dynamically sized.
+        canvas: { w: canvas.width, h: canvas.height, bg: canvasBg }, 
+        objects: objects.map(o => ({
+          id: o.id, type: o.type,
+          filename: o.filename || null,
+          text: o.text || null, bg: o.bg || null, color: o.color || null, font: o.font || null,
+          x: o.x, y: o.y, w: o.w, h: o.h, angle: o.angle, scale: o.scale,
+          shape: o.shape || 'rectangle',
+          colors: o.colors || null,
+          selectable: o.selectable !== false
+        })),
+        selectedId: selected ? selected.id : null
+      };
+    }
+    function pushUndo(){ undoStack.push(snapshot()); redoStack.length = 0; }
+    function restore(state){
+      if(!state) return;
+      // NOTE: We do not restore canvas.width/height because the canvas is now responsive
+      // The objects maintain their absolute coordinates
+      const byId = new Map(objects.map(o=>[o.id,o]));
+      for(const so of state.objects){
+        let o = byId.get(so.id);
+        if(!o){
+          if (so.type === 'image') o = { id: so.id, type:'image', img:null, filename:so.filename };
+          else if (so.type === 'title') o = { id: so.id, type:'title' };
+          else if (so.type === 'palette') o = { id: so.id, type:'palette' };
+          byId.set(so.id,o);
+        }
+        Object.assign(o,{
+          x:so.x,y:so.y,w:so.w,h:so.h,angle:so.angle,scale:so.scale,shape:so.shape||'rectangle',
+          selectable: so.selectable !== false
+        });
+        if(so.type==='title'){
+          o.text=so.text; o.bg=so.bg||'#ece4dc'; o.color=so.color||'#1e1e1e';
+          o.font=so.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
+        }
+        if(so.type==='palette'){ o.colors = Array.isArray(so.colors) ? so.colors : []; }
       }
+      objects = state.objects.map(so=>byId.get(so.id)).filter(Boolean);
+      selected = objects.find(o=>o.id===state.selectedId) || null;
+      canvasBg = state.canvas.bg || '#ffffff';
+      if (bgPicker) bgPicker.value = canvasBg;
+      draw();
     }
-    else if(obj.type==='image' && obj.img){
-      ctx.save(); ctx.beginPath(); clipByShape(obj); ctx.clip();
-      ctx.drawImage(obj.img, -obj.w/2, -obj.h/2, obj.w, obj.h);
-      ctx.restore();
-    }
-    else if(obj.type==='title'){
-      ctx.fillStyle = obj.bg || '#ece4dc';
-      roundRect(ctx, -obj.w/2, -obj.h/2, obj.w, obj.h, 10); ctx.fill();
+    function undo(){ if(!undoStack.length) return; const cur=snapshot(); const prev=undoStack.pop(); redoStack.push(cur); restore(prev); }
+    function redo(){ if(!redoStack.length) return; const cur=snapshot(); const next=redoStack.pop(); undoStack.push(cur); restore(next); }
 
-      const pad = 14;
-      let fontPx = Math.min(64, Math.max(14, obj.h - pad*2));
-      ctx.textAlign='center'; ctx.textBaseline='middle';
-      const family = obj.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
-      ctx.fillStyle = obj.color || '#1e1e1e';
-      ctx.font = `${fontPx}px ${family}`;
-      let metrics = ctx.measureText(obj.text || '');
-      while(metrics.width > obj.w - pad*2 && fontPx > 10){
-        fontPx -= 1; ctx.font = `${fontPx}px ${family}`;
-        metrics = ctx.measureText(obj.text || '');
-      }
-      ctx.fillText(obj.text || '', 0, 0);
-    }
+    /* ================= Utilities ================= */
+    function baseName(path){ return String(path).split(/[\\/]/).pop(); }
 
-    const selectable = obj.selectable !== false;
-    if(selectable && obj===selected){
-      ctx.lineWidth = 2/obj.scale;
-      ctx.strokeStyle = '#2b6cb0';
-      ctx.setLineDash([6/obj.scale,6/obj.scale]);
-      roundRect(ctx, -obj.w/2, -obj.h/2, obj.w, obj.h, 6/obj.scale); ctx.stroke();
-      ctx.setLineDash([]);
-
-      const hs = 8/obj.scale;
-      const pts = handlePoints(obj);
-      ctx.fillStyle='#fff'; ctx.strokeStyle='#2b6cb0';
-      for(const p of pts){ ctx.beginPath(); ctx.rect(p.x-hs/2, p.y-hs/2, hs, hs); ctx.fill(); ctx.stroke(); }
-      const rot = rotationHandleLocal(obj);
-      ctx.beginPath(); ctx.arc(rot.x, rot.y, 8/obj.scale, 0, Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0,-obj.h/2); ctx.lineTo(rot.x,rot.y); ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  updateInspectorFields();
-}
-function roundRect(ctx,x,y,w,h,r){
-  const rr=Math.min(r,Math.abs(w)/2,Math.abs(h)/2);
-  ctx.beginPath();
-  ctx.moveTo(x+rr,y);
-  ctx.arcTo(x+w,y,  x+w,y+h, rr);
-  ctx.arcTo(x+w,y+h,x,  y+h, rr);
-  ctx.arcTo(x,  y+h,x,  y,   rr);
-  ctx.arcTo(x,  y,  x+w,y,   rr);
-  ctx.closePath();
-}
-function handlePoints(obj){
-  if (obj.selectable === false) return [];
-  const hw=obj.w/2, hh=obj.h/2;
-  return [
-    {x:-hw,y:-hh},{x:0,y:-hh},{x:hw,y:-hh},
-    {x: hw,y: 0 },{x:hw,y: hh},
-    {x:  0,y: hh},{x:-hw,y: hh},{x:-hw,y:0},
-  ];
-}
-function rotationHandleLocal(obj){ return {x:0, y:-(obj.h/2+30)}; }
-
-/* ================= Hit Testing (ZOOM AWARE) ================= */
-function getCanvasMouse(e){
-  const rect = canvas.getBoundingClientRect();
-  const x = (e.clientX - rect.left) / currentZoom;
-  const y = (e.clientY - rect.top) / currentZoom;
-  return {x,y};
-}
-function hitTestScreen(e){
-  const {x,y} = getCanvasMouse(e);
-  for(let i=objects.length-1;i>=0;i--){
-    const obj=objects[i];
-    if (obj.selectable === false) continue;
-
-    const rLoc=rotationHandleLocal(obj), rScr=toScreen(obj,rLoc.x,rLoc.y);
-    if((x-rScr.x)**2+(y-rScr.y)**2 <= (12)**2) return {obj,hit:{type:'rotate'}};
-
-    const pts=handlePoints(obj).map(p=>toScreen(obj,p.x,p.y));
-    for(let h=0;h<pts.length;h++){
-      const p=pts[h];
-      if(Math.abs(x-p.x)<=8 && Math.abs(y-p.y)<=8) return {obj,hit:{type:'scale',index:h}};
-    }
-
-    const lp=toLocal(obj,x,y);
-    if(lp.x>=-obj.w/2 && lp.x<=obj.w/2 && lp.y>=-obj.h/2 && lp.y<=obj.h/2) return {obj,hit:{type:'move'}};
-  }
-  return {obj:null,hit:null};
-}
-
-/* ================= Interaction ================= */
-canvas.addEventListener('mousedown',(e)=>{
-  const {obj,hit}=hitTestScreen(e);
-  pushUndo();
-  selected=obj; dragMode=hit?hit.type:null; lastMouse=getCanvasMouse(e);
-
-  if(selected){ const i=objects.indexOf(selected); objects.splice(i,1); objects.push(selected); }
-  showInspector(!!selected);
-  draw();
-});
-
-// Throttle draw calls to prevent stuttering
-let drawTimeout = null;
-function throttledDraw() {
-  if (drawTimeout) return;
-  drawTimeout = requestAnimationFrame(() => {
-    draw();
-    drawTimeout = null;
-  });
-}
-
-window.addEventListener('mousemove',(e)=>{
-  if(!selected || !dragMode) return;
-  const pt = getCanvasMouse(e);
-
-  if(dragMode==='move'){ selected.x += pt.x-lastMouse.x; selected.y += pt.y-lastMouse.y; }
-  else if(dragMode==='rotate'){
-    const cx=selected.x+selected.w/2, cy=selected.y+selected.h/2;
-    selected.angle=Math.atan2(pt.y-cy,pt.x-cx)-Math.PI/2;
-  }
-  else if(dragMode==='scale'){
-    const lp=toLocal(selected, pt.x, pt.y);
-    const s=Math.max(0.05, Math.max(Math.abs(lp.x)/(selected.w/2), Math.abs(lp.y)/(selected.h/2)));
-    selected.scale=s;
-  }
-
-  lastMouse=pt; 
-  throttledDraw();
-});
-
-window.addEventListener('mouseup',()=>{ 
-  dragMode=null; 
-  // Ensure final draw after drag operation
-  if (drawTimeout) {
-    cancelAnimationFrame(drawTimeout);
-    drawTimeout = null;
-  }
-  draw();
-});
-
-/* ==================== Prevent inspector from triggering canvas hotkeys ==================== */
-function isEditingUI(e) {
-  const t = e && e.target ? e.target : document.activeElement;
-  if (!t) return false;
-  if (t === titleEditor) return true;
-  if (t.isContentEditable) return true;
-  const tag = (t.tagName || '').toUpperCase();
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-  if (t.closest && t.closest('#inspector')) return true;
-  return false;
-}
-
-document.addEventListener('keydown',(e)=>{
-  if (isEditingUI(e)) return;
-
-  if((e.ctrlKey||e.metaKey) && !e.shiftKey && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); showInspector(!!selected); return; }
-  if((e.ctrlKey||e.metaKey) && (e.key.toLowerCase()==='y' || (e.shiftKey && e.key.toLowerCase()==='z'))){ e.preventDefault(); redo(); showInspector(!!selected); return; }
-
-  if(!selected) return;
-  if(e.key==='Delete' || e.key==='Backspace'){
-    e.preventDefault();
-    pushUndo();
-    objects = objects.filter(o=>o!==selected);
-    selected = null;
-    showInspector(false);
-    draw();
-  }
-});
-
-document.getElementById('inspector').addEventListener('keydown', (e) => { e.stopPropagation(); });
-
-/* ================= Title Inline (optional) ================= */
-function startTitleEdit(obj){
-  if (obj.type!=='title') return;
-  const pts=[toScreen(obj,-obj.w/2,-obj.h/2),toScreen(obj,obj.w/2,-obj.h/2),toScreen(obj,obj.w/2,obj.h/2),toScreen(obj,-obj.w/2,obj.h/2)];
-  const minX=Math.min(...pts.map(p=>p.x)), maxX=Math.max(...pts.map(p=>p.x));
-  const minY=Math.min(...pts.map(p=>p.y)), maxY=Math.max(...pts.map(p=>p.y));
-  titleEditor.style.left=(minX*currentZoom+window.scrollX+4)+'px';
-  titleEditor.style.top =(minY*currentZoom+window.scrollY+4)+'px';
-  titleEditor.style.width =Math.max(50,(maxX-minX)*currentZoom-8)+'px';
-  titleEditor.style.height=Math.max(24,(maxY-minY)*currentZoom-8)+'px';
-  titleEditor.value=obj.text||''; titleEditor.style.display='block'; titleEditor.focus(); titleEditor.select();
-
-  const commit=()=>{ pushUndo(); obj.text=titleEditor.value; titleEditor.style.display='none'; titleEditor.onblur=null; titleEditor.onkeydown=null; draw(); updateInspectorFields(); };
-  titleEditor.onblur=commit;
-  titleEditor.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); commit(); } if(ev.key==='Escape'){ titleEditor.style.display='none'; } };
-}
-
-/* ==================== JSON: reusable apply + file input + preload ==================== */
-async function applyJson(data){
-  if(data.canvas){
-    jsonCanvasW = data.canvas.w || data.canvas.width || canvas.width;
-    jsonCanvasH = data.canvas.h || data.canvas.height || canvas.height;
-    canvas.width  = jsonCanvasW;
-    canvas.height = jsonCanvasH;
-    canvasBg = data.canvas.bg || '#ffffff';       // NEW: restore BG
-    if (bgPicker) bgPicker.value = canvasBg;
-  }
-
-  objects = [];
-
-  // Palette (non-selectable)
-  if (data.palette && Array.isArray(data.palette.colors) && data.palette.strip) {
-    const s = data.palette.strip;
-    objects.push({
-      id: nextId++,
-      type: 'palette',
-      x: s[0], y: s[1],
-      w: (s[2]-s[0]), h: (s[3]-s[1]),
-      angle: 0, scale: 1,
-      colors: data.palette.colors,
-      selectable: false
-    });
-  }
-
-  // Title
-  if(data.title && data.title.strip){
-    const s=data.title.strip;
-    objects.push({
-      id:nextId++, type:'title',
-      text:data.title.text||'Title',
-      x:s[0]+12, y:s[1]+8, w:(s[2]-s[0]-24), h:(s[3]-s[1]-16),
-      angle:0, scale:1,
-      bg:'#ece4dc', color:'#1e1e1e',
-      font:`"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`,
-      shape:'rectangle'
-    });
-  }
-
-  // Images - handle both old format (data.images) and new format (data.objects)
-  if(Array.isArray(data.images)){
-    for(const m of data.images){
-      if(!m.filename) continue;
-      const name=baseName(m.filename);
-      let img=null; try{ img=await loadWithFallback(name); }catch(err){ console.warn('Failed to load image:', name, err); }
-      objects.push({
-        id:nextId++, type:'image',
-        img, filename:name,
-        x:m.x, y:m.y, w:m.w*m.scale, h:m.h*m.scale,
-        angle:0, scale:1,
-        shape: (m.shape || 'rectangle')
+    function showSaveSuccessDialog() {
+      // ... (unchanged) ...
+      // NOTE: This function is unchanged but relies on `homepage.html` existing
+      const overlay = document.createElement('div');
+      overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5); z-index: 1000; display: flex;
+        align-items: center; justify-content: center;
+      `;
+      
+      const dialog = document.createElement('div');
+      dialog.style.cssText = `
+        background: white; padding: 30px; border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: center;
+        max-width: 400px; width: 90%;
+      `;
+      
+      dialog.innerHTML = `
+        <h3 style="margin: 0 0 15px 0; color: #3EA38B;">✅ Moodboard Saved Successfully!</h3>
+        <p style="margin: 0 0 25px 0; color: #666;">Your moodboard has been saved to the gallery as a compiled PNG image.</p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button id="dialogBackToHomeBtn" class="primary-btn" style="
+            background: linear-gradient(150deg, #3EA38B 35%, #328572 100%); color: white; border: none;
+            padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;
+          ">Back to Home</button>
+          <button id="continueEditBtn" class="secondary-btn" style="
+            padding: 10px 20px; background: #FCEDD9; color: #3EA38B;
+            border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 14px;
+          ">Continue Editing</button>
+        </div>
+      `;
+      
+      overlay.appendChild(dialog);
+      document.body.appendChild(overlay);
+      
+      document.getElementById('dialogBackToHomeBtn').addEventListener('click', () => {
+        document.body.removeChild(overlay);
+        window.location.href = 'homepage.html';
+      });
+      
+      document.getElementById('continueEditBtn').addEventListener('click', () => {
+        document.body.removeChild(overlay);
+      });
+      
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          document.body.removeChild(overlay);
+        }
       });
     }
-  }
-  
-  // Handle new format with objects array
-  if(Array.isArray(data.objects)){
-    for(const obj of data.objects){
-      if(obj.type === 'image' && obj.filename){
-        const name=baseName(obj.filename);
-        let img=null; 
-        try{ 
-          img=await loadWithFallback(name); 
-        }catch(err){ 
-          console.warn('Failed to load image:', name, err); 
+
+    function loadImage(src){
+      return new Promise((resolve,reject)=>{ 
+        const img=new Image(); 
+        img.crossOrigin = 'anonymous'; 
+        img.onload=()=>resolve(img); 
+        img.onerror=reject; 
+        img.src=src; 
+      });
+    }
+    async function loadWithFallback(filename){
+      const name = baseName(filename);
+      const candidates = [
+        'http://localhost:8000/images/'+name,
+        'http://localhost:8000/past_moodboards/images/'+name,
+        '../images/'+name, 
+        './images/'+name
+      ];
+      for(const url of candidates){ 
+        try { 
+          console.log('Trying to load image from:', url);
+          const img = await loadImage(url); 
+          console.log('Successfully loaded image from:', url);
+          return img; 
+        } catch(e){
+          console.warn('Failed to load image from:', url, e);
         }
+      }
+      throw new Error('Image not found: '+name);
+    }
+    function toLocal(obj,x,y){
+      // NOTE: Scale is now used for object size, not zoom.
+      const s=obj.scale, c=Math.cos(obj.angle), d=Math.sin(obj.angle);
+      const dx=x-(obj.x+obj.w/2), dy=y-(obj.y+obj.h/2);
+      return { x:( dx*c + dy*d)/s, y:(-dx*d + dy*c)/s };
+    }
+    function toScreen(obj,lx,ly){
+      // NOTE: Scale is now used for object size, not zoom.
+      const s=obj.scale, c=Math.cos(obj.angle), d=Math.sin(obj.angle);
+      return { x:obj.x+obj.w/2+( lx*c - ly*d )*s, y:obj.y+obj.h/2+( lx*d + ly*c )*s };
+    }
+
+    /* ================= Shapes ================= */
+    function clipByShape(obj){
+      const hw = obj.w/2, hh = obj.h/2;
+      const shape = (obj.shape||'rectangle').toLowerCase();
+      if(shape === 'rectangle'){ ctx.rect(-hw, -hh, obj.w, obj.h); }
+      else if(shape === 'circle'){ const r = Math.min(hw, hh); ctx.ellipse(0, 0, r, r, 0, 0, Math.PI*2); }
+      else if(shape === 'oval'){ ctx.ellipse(0, 0, hw, hh, 0, 0, Math.PI*2); }
+      else { ctx.rect(-hw, -hh, obj.w, obj.h); }
+    }
+
+    function clipByShapeForContext(context, obj){
+      const hw = obj.w/2, hh = obj.h/2;
+      const shape = (obj.shape||'rectangle').toLowerCase();
+      if(shape === 'rectangle'){ context.rect(-hw, -hh, obj.w, obj.h); }
+      else if(shape === 'circle'){ const r = Math.min(hw, hh); context.ellipse(0, 0, r, r, 0, 0, Math.PI*2); }
+      else if(shape === 'oval'){ context.ellipse(0, 0, hw, hh, 0, 0, Math.PI*2); }
+      else { context.rect(-hw, -hh, obj.w, obj.h); }
+    }
+
+    /* ================= Drawing ================= */
+    function draw(){
+      // Clear & fill the background first
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.save();
+      ctx.fillStyle = canvasBg || '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+
+      for(const obj of objects){
+        ctx.save();
+        ctx.translate(obj.x+obj.w/2, obj.y+obj.h/2);
+        ctx.rotate(obj.angle);
+        ctx.scale(obj.scale, obj.scale); // Scale is now relative to the object's base size
+
+        if(obj.type==='palette'){
+          const gap = 8, inset = 10;
+          const usableW = obj.w - 2*inset, usableH = obj.h - 2*inset;
+          const n = Math.max(1, (obj.colors||[]).length);
+          const swH = Math.floor((usableH - gap*(n-1)) / n);
+          let y = -obj.h/2 + inset;
+          for (let i=0;i<n;i++){
+            const c = obj.colors[i] || [200,200,200];
+            ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+            ctx.fillRect(-obj.w/2 + inset, y, usableW, swH);
+            y += swH + gap;
+          }
+        }
+        else if(obj.type==='image' && obj.img){
+          ctx.save(); ctx.beginPath(); clipByShape(obj); ctx.clip();
+          ctx.drawImage(obj.img, -obj.w/2, -obj.h/2, obj.w, obj.h);
+          ctx.restore();
+        }
+        else if(obj.type==='title'){
+          ctx.fillStyle = obj.bg || '#ece4dc';
+          roundRect(ctx, -obj.w/2, -obj.h/2, obj.w, obj.h, 10); ctx.fill();
+
+          const pad = 14;
+          let fontPx = Math.min(64, Math.max(14, obj.h - pad*2));
+          ctx.textAlign='center'; ctx.textBaseline='middle';
+          const family = obj.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
+          ctx.fillStyle = obj.color || '#1e1e1e';
+          ctx.font = `${fontPx}px ${family}`;
+          let metrics = ctx.measureText(obj.text || '');
+          // NOTE: Font scaling logic now depends on absolute sizes, which is correct
+          while(metrics.width > obj.w - pad*2 && fontPx > 10){
+            fontPx -= 1; ctx.font = `${fontPx}px ${family}`;
+            metrics = ctx.measureText(obj.text || '');
+          }
+          ctx.fillText(obj.text || '', 0, 0);
+        }
+
+        const selectable = obj.selectable !== false;
+        if(selectable && obj===selected){
+          // Control handles scale with 1/scale factor
+          ctx.lineWidth = 2/obj.scale;
+          ctx.strokeStyle = '#2b6cb0';
+          ctx.setLineDash([6/obj.scale,6/obj.scale]);
+          roundRect(ctx, -obj.w/2, -obj.h/2, obj.w, obj.h, 6/obj.scale); ctx.stroke();
+          ctx.setLineDash([]);
+
+          const hs = 8/obj.scale;
+          const pts = handlePoints(obj);
+          ctx.fillStyle='#fff'; ctx.strokeStyle='#2b6cb0';
+          for(const p of pts){ ctx.beginPath(); ctx.rect(p.x-hs/2, p.y-hs/2, hs, hs); ctx.fill(); ctx.stroke(); }
+          const rot = rotationHandleLocal(obj);
+          ctx.beginPath(); ctx.arc(rot.x, rot.y, 8/obj.scale, 0, Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0,-obj.h/2); ctx.lineTo(rot.x,rot.y); ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      updateInspectorFields();
+    }
+    function roundRect(ctx,x,y,w,h,r){
+      const rr=Math.min(r,Math.abs(w)/2,Math.abs(h)/2);
+      ctx.beginPath();
+      ctx.moveTo(x+rr,y);
+      ctx.arcTo(x+w,y,  x+w,y+h, rr);
+      ctx.arcTo(x+w,y+h,x,  y+h, rr);
+      ctx.arcTo(x,  y+h,x,  y,   rr);
+      ctx.arcTo(x,  y,  x+w,y,   rr);
+      ctx.closePath();
+    }
+    function handlePoints(obj){
+      if (obj.selectable === false) return [];
+      const hw=obj.w/2, hh=obj.h/2;
+      return [
+        {x:-hw,y:-hh},{x:0,y:-hh},{x:hw,y:-hh},
+        {x: hw,y: 0 },{x:hw,y: hh},
+        {x:  0,y: hh},{x:-hw,y: hh},{x:-hw,y:0},
+      ];
+    }
+    function rotationHandleLocal(obj){ return {x:0, y:-(obj.h/2+30)}; }
+
+    /* ================= Hit Testing (REMOVED ZOOM AWARENESS) ================= */
+    function getCanvasMouse(e){
+      const rect = canvas.getBoundingClientRect();
+      // Mouse coordinates are now relative to the canvas's physical size
+      const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+      return {x,y};
+    }
+    function hitTestScreen(e){
+      const {x,y} = getCanvasMouse(e);
+      for(let i=objects.length-1;i>=0;i--){
+        const obj=objects[i];
+        if (obj.selectable === false) continue;
+
+        // Hit tests must be updated since there is no visual scale (currentZoom=1)
+        const rLoc=rotationHandleLocal(obj), rScr=toScreen(obj,rLoc.x,rLoc.y);
+        // Hitbox size (12px) is now absolute on screen
+        if((x-rScr.x)**2+(y-rScr.y)**2 <= (12)**2) return {obj,hit:{type:'rotate'}};
+
+        const pts=handlePoints(obj).map(p=>toScreen(obj,p.x,p.y));
+        for(let h=0;h<pts.length;h++){
+          const p=pts[h];
+          // Hitbox size (8px) is now absolute on screen
+          if(Math.abs(x-p.x)<=8 && Math.abs(y-p.y)<=8) return {obj,hit:{type:'scale',index:h}};
+        }
+
+        const lp=toLocal(obj,x,y);
+        if(lp.x>=-obj.w/2 && lp.x<=obj.w/2 && lp.y>=-obj.h/2 && lp.y<=obj.h/2) return {obj,hit:{type:'move'}};
+      }
+      return {obj:null,hit:null};
+    }
+
+    /* ================= Interaction ================= */
+    canvas.addEventListener('mousedown',(e)=>{
+      const {obj,hit}=hitTestScreen(e);
+      pushUndo();
+      selected=obj; dragMode=hit?hit.type:null; lastMouse=getCanvasMouse(e);
+
+      if(selected){ const i=objects.indexOf(selected); objects.splice(i,1); objects.push(selected); }
+      showInspector(!!selected);
+      draw();
+    });
+
+    // Throttle draw calls to prevent stuttering
+    let drawTimeout = null;
+    function throttledDraw() {
+      if (drawTimeout) return;
+      drawTimeout = requestAnimationFrame(() => {
+        draw();
+        drawTimeout = null;
+      });
+    }
+
+    window.addEventListener('mousemove',(e)=>{
+      if(!selected || !dragMode) return;
+      const pt = getCanvasMouse(e);
+
+      if(dragMode==='move'){ selected.x += pt.x-lastMouse.x; selected.y += pt.y-lastMouse.y; }
+      else if(dragMode==='rotate'){
+        const cx=selected.x+selected.w/2, cy=selected.y+selected.h/2;
+        selected.angle=Math.atan2(pt.y-cy,pt.x-cx)-Math.PI/2;
+      }
+      else if(dragMode==='scale'){
+        const lp=toLocal(selected, pt.x, pt.y);
+        const s=Math.max(0.05, Math.max(Math.abs(lp.x)/(selected.w/2), Math.abs(lp.y)/(selected.h/2)));
+        selected.scale=s;
+      }
+
+      lastMouse=pt; 
+      throttledDraw();
+    });
+
+    window.addEventListener('mouseup',()=>{ 
+      dragMode=null; 
+      // Ensure final draw after drag operation
+      if (drawTimeout) {
+        cancelAnimationFrame(drawTimeout);
+        drawTimeout = null;
+      }
+      draw();
+    });
+
+    /* ==================== Prevent inspector from triggering canvas hotkeys ==================== */
+    function isEditingUI(e) {
+      const t = e && e.target ? e.target : document.activeElement;
+      if (!t) return false;
+      if (t === titleEditor) return true;
+      if (t.isContentEditable) return true;
+      const tag = (t.tagName || '').toUpperCase();
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      if (t.closest && t.closest('#inspector')) return true;
+      return false;
+    }
+
+    document.addEventListener('keydown',(e)=>{
+      if (isEditingUI(e)) return;
+
+      if((e.ctrlKey||e.metaKey) && !e.shiftKey && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); showInspector(!!selected); return; }
+      if((e.ctrlKey||e.metaKey) && (e.key.toLowerCase()==='y' || (e.shiftKey && e.key.toLowerCase()==='z'))){ e.preventDefault(); redo(); showInspector(!!selected); return; }
+
+      if(!selected) return;
+      if(e.key==='Delete' || e.key==='Backspace'){
+        e.preventDefault();
+        pushUndo();
+        objects = objects.filter(o=>o!==selected);
+        selected = null;
+        showInspector(false);
+        draw();
+      }
+    });
+
+    document.getElementById('inspector').addEventListener('keydown', (e) => { e.stopPropagation(); });
+
+    /* ================= Title Inline (optional) ================= */
+    function startTitleEdit(obj){
+      if (obj.type!=='title') return;
+      // NOTE: Coordinates are now absolute canvas coordinates
+      const pts=[toScreen(obj,-obj.w/2,-obj.h/2),toScreen(obj,obj.w/2,-obj.h/2),toScreen(obj,obj.w/2,obj.h/2),toScreen(obj,-obj.w/2,obj.h/2)];
+      const minX=Math.min(...pts.map(p=>p.x)), maxX=Math.max(...pts.map(p=>p.x));
+      const minY=Math.min(...pts.map(p=>p.y)), maxY=Math.max(...pts.map(p=>p.y));
+      
+      // Calculate scaling factor from canvas size to screen size
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = rect.width / canvas.width;
+      const scaleY = rect.height / canvas.height;
+
+      titleEditor.style.left=(minX*scaleX+rect.left)+'px';
+      titleEditor.style.top =(minY*scaleY+rect.top)+'px';
+      titleEditor.style.width =Math.max(50,(maxX-minX)*scaleX-8)+'px';
+      titleEditor.style.height=Math.max(24,(maxY-minY)*scaleY-8)+'px';
+      titleEditor.value=obj.text||''; titleEditor.style.display='block'; titleEditor.focus(); titleEditor.select();
+
+      const commit=()=>{ pushUndo(); obj.text=titleEditor.value; titleEditor.style.display='none'; titleEditor.onblur=null; titleEditor.onkeydown=null; draw(); updateInspectorFields(); };
+      titleEditor.onblur=commit;
+      titleEditor.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); commit(); } if(ev.key==='Escape'){ titleEditor.style.display='none'; } };
+    }
+
+    /* ==================== JSON: reusable apply + file input + preload ==================== */
+    async function applyJson(data){
+      // NOTE: Ignoring saved canvas size, as the board is now responsive.
+      // Objects are loaded at their original coordinates.
+
+      objects = [];
+
+      // Palette (non-selectable)
+      if (data.palette && Array.isArray(data.palette.colors) && data.palette.strip) {
+        const s = data.palette.strip;
         objects.push({
-          id:nextId++, type:'image',
-          img, filename:name,
-          x:obj.x, y:obj.y, w:obj.w, h:obj.h,
-          angle:obj.angle || 0, scale:obj.scale || 1,
-          shape: (obj.shape || 'rectangle')
+          id: nextId++,
+          type: 'palette',
+          x: s[0], y: s[1],
+          w: (s[2]-s[0]), h: (s[3]-s[1]),
+          angle: 0, scale: 1,
+          colors: data.palette.colors,
+          selectable: false
         });
       }
-      else if(obj.type === 'title'){
+
+      // Title
+      if(data.title && data.title.strip){
+        const s=data.title.strip;
         objects.push({
           id:nextId++, type:'title',
-          text:obj.text,
-          x:obj.x, y:obj.y, w:obj.w, h:obj.h,
-          angle:obj.angle || 0, scale:obj.scale || 1,
-          bg:obj.bg, color:obj.color, font:obj.font,
-          selectable: obj.selectable !== false
+          text:data.title.text||'Title',
+          x:s[0]+12, y:s[1]+8, w:(s[2]-s[0]-24), h:(s[3]-s[1]-16),
+          angle:0, scale:1,
+          bg:'#ece4dc', color:'#1e1e1e',
+          font:`"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`,
+          shape:'rectangle'
         });
       }
-      else if(obj.type === 'palette'){
-        objects.push({
-          id:nextId++, type:'palette',
-          x:obj.x, y:obj.y, w:obj.w, h:obj.h,
-          angle:obj.angle || 0, scale:obj.scale || 1,
-          colors:obj.colors,
-          selectable: obj.selectable !== false
-        });
+
+      // Images - handle both old format (data.images) and new format (data.objects)
+      // (The object coordinates are preserved as absolute values)
+      if(Array.isArray(data.images)){
+        for(const m of data.images){
+          if(!m.filename) continue;
+          const name=baseName(m.filename);
+          let img=null; try{ img=await loadWithFallback(name); }catch(err){ console.warn('Failed to load image:', name, err); }
+          objects.push({
+            id:nextId++, type:'image',
+            img, filename:name,
+            // NOTE: The saved coordinates are now the absolute coordinates on the new canvas
+            x:m.x, y:m.y, w:m.w*m.scale, h:m.h*m.scale,
+            angle:0, scale:1,
+            shape: (m.shape || 'rectangle')
+          });
+        }
       }
-    }
-  }
-
-  selected = null;
-  showInspector(false);
-  undoStack.length=0; redoStack.length=0; pushUndo(); draw();
-  
-  // Ensure the canvas is properly fitted after loading
-  setTimeout(() => {
-    fitZoomForLayout(false);
-  }, 100);
-}
-
-/* File input -> applyJson */
-document.getElementById('jsonInput').addEventListener('change', async (e)=>{
-  const file = e.target.files[0]; if(!file) return;
-  const text = await file.text(); const data = JSON.parse(text);
-  await applyJson(data);
-});
-
-/* Auto-load organized moodboard data from localStorage if available */
-window.addEventListener('load', async () => {
-  // Check if there's organized moodboard data from the image selection process
-  const organizedData = localStorage.getItem('organizedMoodboardData');
-  if (organizedData) {
-    try {
-      console.log('Loading organized moodboard data from localStorage');
-      const data = JSON.parse(organizedData);
-      await applyJson(data);
-      fitZoomForLayout(false);
       
-      // Clear the stored data after loading
-      localStorage.removeItem('organizedMoodboardData');
-      return;
-    } catch (err) {
-      console.warn('Failed to load organized moodboard data:', err);
-      localStorage.removeItem('organizedMoodboardData');
-    }
-  }
-  
-  // If no organized data, start with a clean canvas
-  console.log('No organized data found - starting with clean canvas');
-  objects = [];
-  selected = null;
-  showInspector(false);
-  undoStack.length = 0;
-  redoStack.length = 0;
-  pushUndo();
-  draw();
-  
-  // Apply initial zoom fitting
-  setTimeout(() => {
-    fitZoomForLayout(false);
-  }, 100);
-});
-
-/* ================= Fit button ================= */
-document.getElementById('fitBtn').addEventListener('click', ()=>{
-  canvas.width=jsonCanvasW; canvas.height=jsonCanvasH;
-  fitZoomForLayout(!inspector.hidden);
-  draw();
-});
-
-/* ================= Save (PNG + JSON) ================= */
-document.getElementById('saveBtn').addEventListener('click', async ()=>{
-  try {
-    const data = snapshot();
-    console.log('Saving moodboard data:', data);
-    
-    // Convert canvas to blob
-    const canvas = document.getElementById('board');
-    
-    // Create a clean canvas to avoid tainting issues
-    const cleanCanvas = document.createElement('canvas');
-    cleanCanvas.width = canvas.width;
-    cleanCanvas.height = canvas.height;
-    const cleanCtx = cleanCanvas.getContext('2d');
-    
-    // Fill with background color first
-    cleanCtx.fillStyle = canvasBg || '#ffffff';
-    cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
-    
-    // Draw all objects on clean canvas
-    for(const obj of objects){
-      cleanCtx.save();
-      cleanCtx.translate(obj.x+obj.w/2, obj.y+obj.h/2);
-      cleanCtx.rotate(obj.angle);
-      cleanCtx.scale(obj.scale, obj.scale);
-
-      if(obj.type==='palette'){
-        const gap = 8, inset = 10;
-        const usableW = obj.w - 2*inset, usableH = obj.h - 2*inset;
-        const n = Math.max(1, (obj.colors||[]).length);
-        const swH = Math.floor((usableH - gap*(n-1)) / n);
-        let y = -obj.h/2 + inset;
-        for (let i=0;i<n;i++){
-          const c = obj.colors[i] || [200,200,200];
-          cleanCtx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
-          cleanCtx.fillRect(-obj.w/2 + inset, y, usableW, swH);
-          y += swH + gap;
+      // Handle new format with objects array
+      if(Array.isArray(data.objects)){
+        for(const obj of data.objects){
+          if(obj.type === 'image' && obj.filename){
+            const name=baseName(obj.filename);
+            let img=null; 
+            try{ 
+              img=await loadWithFallback(name); 
+            }catch(err){ 
+              console.warn('Failed to load image:', name, err); 
+            }
+            objects.push({
+              id:nextId++, type:'image',
+              img, filename:name,
+              x:obj.x, y:obj.y, w:obj.w, h:obj.h,
+              angle:obj.angle || 0, scale:obj.scale || 1,
+              shape: (obj.shape || 'rectangle')
+            });
+          }
+          else if(obj.type === 'title'){
+            objects.push({
+              id:nextId++, type:'title',
+              text:obj.text,
+              x:obj.x, y:obj.y, w:obj.w, h:obj.h,
+              angle:obj.angle || 0, scale:obj.scale || 1,
+              bg:obj.bg, color:obj.color, font:obj.font,
+              selectable: obj.selectable !== false
+            });
+          }
+          else if(obj.type === 'palette'){
+            objects.push({
+              id:nextId++, type:'palette',
+              x:obj.x, y:obj.y, w:obj.w, h:obj.h,
+              angle:obj.angle || 0, scale:obj.scale || 1,
+              colors:obj.colors,
+              selectable: obj.selectable !== false
+            });
+          }
         }
       }
-      else if(obj.type==='image' && obj.img){
-        cleanCtx.save(); 
-        cleanCtx.beginPath(); 
-        clipByShapeForContext(cleanCtx, obj); 
-        cleanCtx.clip();
-        cleanCtx.drawImage(obj.img, -obj.w/2, -obj.h/2, obj.w, obj.h);
-        cleanCtx.restore();
-      }
-      else if(obj.type==='image' && !obj.img){
-        // Draw a placeholder rectangle for missing images
-        cleanCtx.fillStyle = '#f0f0f0';
-        cleanCtx.fillRect(-obj.w/2, -obj.h/2, obj.w, obj.h);
-        cleanCtx.strokeStyle = '#ccc';
-        cleanCtx.lineWidth = 2;
-        cleanCtx.strokeRect(-obj.w/2, -obj.h/2, obj.w, obj.h);
-        cleanCtx.fillStyle = '#999';
-        cleanCtx.font = '14px Arial';
-        cleanCtx.textAlign = 'center';
-        cleanCtx.textBaseline = 'middle';
-        cleanCtx.fillText('Missing Image', 0, 0);
-      }
-      else if(obj.type==='title'){
-        cleanCtx.fillStyle = obj.bg || '#ece4dc';
-        roundRect(cleanCtx, -obj.w/2, -obj.h/2, obj.w, obj.h, 10); 
-        cleanCtx.fill();
 
-        const pad = 14;
-        let fontPx = Math.min(64, Math.max(14, obj.h - pad*2));
-        cleanCtx.textAlign='center'; 
-        cleanCtx.textBaseline='middle';
-        const family = obj.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
-        cleanCtx.fillStyle = obj.color || '#1e1e1e';
-        cleanCtx.font = `${fontPx}px ${family}`;
-        let metrics = cleanCtx.measureText(obj.text || '');
-        while(metrics.width > obj.w - pad*2 && fontPx > 10){
-          fontPx -= 1; 
-          cleanCtx.font = `${fontPx}px ${family}`;
-          metrics = cleanCtx.measureText(obj.text || '');
-        }
-        cleanCtx.fillText(obj.text || '', 0, 0);
-      }
-      cleanCtx.restore();
+      selected = null;
+      showInspector(false);
+      undoStack.length=0; redoStack.length=0; pushUndo(); 
+      draw();
+      resizeCanvas();
     }
-    
-    const pngBlob = await new Promise(resolve => cleanCanvas.toBlob(resolve, 'image/png'));
-    
-    // Create form data to send both JSON and PNG
-    const formData = new FormData();
-    formData.append('json_data', JSON.stringify(data, null, 2));
-    formData.append('image', pngBlob, 'moodboard.png');
-    
-    // Get title from the title object if it exists
-    let titleText = 'Untitled Moodboard';
-    const titleObj = objects.find(obj => obj.type === 'title');
-    if (titleObj && titleObj.text) {
-      titleText = titleObj.text;
-    }
-    
-    // Also check the data.objects for title
-    if (titleText === 'Untitled Moodboard' && data.objects) {
-      const dataTitleObj = data.objects.find(obj => obj.type === 'title');
-      if (dataTitleObj && dataTitleObj.text) {
-        titleText = dataTitleObj.text;
-      }
-    }
-    
-    console.log('Extracted title:', titleText);
-    console.log('Objects:', objects);
-    console.log('Data objects:', data.objects);
-    
-    formData.append('title', titleText);
-    formData.append('prompt', 'User-created moodboard');
-    
-    // Send to backend
-    const response = await fetch('http://localhost:8000/api/save_moodboard', {
-      method: 'POST',
-      body: formData
+
+    /* File input -> applyJson */
+    document.getElementById('jsonInput').addEventListener('change', async (e)=>{
+      const file = e.target.files[0]; if(!file) return;
+      const text = await file.text(); const data = JSON.parse(text);
+      await applyJson(data);
     });
+
+    /* Auto-load organized moodboard data from localStorage if available */
+    window.addEventListener('load', async () => {
+      // ... (unchanged) ...
+      const organizedData = localStorage.getItem('organizedMoodboardData');
+      if (organizedData) {
+        try {
+          console.log('Loading organized moodboard data from localStorage');
+          const data = JSON.parse(organizedData);
+          await applyJson(data);
+          
+          localStorage.removeItem('organizedMoodboardData');
+          return;
+        } catch (err) {
+          console.warn('Failed to load organized moodboard data:', err);
+          localStorage.removeItem('organizedMoodboardData');
+        }
+      }
+      
+      // If no organized data, start with a clean canvas
+      console.log('No organized data found - starting with clean canvas');
+      objects = [];
+      selected = null;
+      showInspector(false);
+      undoStack.length = 0;
+      redoStack.length = 0;
+      pushUndo();
+      draw();
+      
+      resizeCanvas();
+    });
+    /* ================= Save (PNG + JSON) ================= */
+    document.getElementById('saveBtn').addEventListener('click', async ()=>{
+      try {
+        // NOTE: Snapshot now saves the current, dynamic canvas size
+        const data = snapshot();
+        
+        const canvas = document.getElementById('board');
+        
+        // Use the live canvas since it is already rendered at the correct size
+        const pngBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        
+        // Create form data to send both JSON and PNG
+        const formData = new FormData();
+        formData.append('json_data', JSON.stringify(data, null, 2));
+        formData.append('image', pngBlob, 'moodboard.png');
+        
+        let titleText = 'Untitled Moodboard';
+        const titleObj = objects.find(obj => obj.type === 'title');
+        if (titleObj && titleObj.text) { titleText = titleObj.text; }
+        
+        formData.append('title', titleText);
+        formData.append('prompt', 'User-created moodboard');
+        
+        // Send to backend
+        const response = await fetch('http://localhost:8000/api/save_moodboard', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          showSaveSuccessDialog();
+          console.log('Saved:', result);
+        } else {
+          const error = await response.text();
+          alert('Failed to save moodboard: ' + error);
+        }
+      } catch (err) {
+        console.error('Save error:', err);
+        alert('Failed to save moodboard: ' + err.message);
+      }
+    });
+
+    /* ================= Inspector Panel Logic (UNCHANGED) ================= */
+    const panelTitle = document.getElementById('panelTitle');
+    const objTypeEl = document.getElementById('objType');
+    const objFilenameEl = document.getElementById('objFilename');
+    const commonSection = document.getElementById('commonSection');
+    const titleSection = document.getElementById('titleSection');
+    const paletteSection = document.getElementById('paletteSection');
+
+    const inpX = document.getElementById('inpX');
+    const inpY = document.getElementById('inpY');
+    const inpW = document.getElementById('inpW');
+    const inpH = document.getElementById('inpH');
+    const inpScale = document.getElementById('inpScale');
+    const inpRot = document.getElementById('inpRot');
+    const inpShape = document.getElementById('inpShape');
+
+    const inpTitleText = document.getElementById('inpTitleText');
+    const inpTitleColor = document.getElementById('inpTitleColor');
+    const inpTitleBG = document.getElementById('inpTitleBG');
+    const inpTitleFont = document.getElementById('inpTitleFont');
+
+    function updateInspectorFields(){
+      if(!selected || inspector.hidden) return;
+      panelTitle.textContent = `Inspector — ${selected.type}`;
+      objTypeEl.textContent = selected.type;
+      objFilenameEl.textContent = selected.filename || '—';
+
+      inpX.value = Math.round(selected.x);
+      inpY.value = Math.round(selected.y);
+      inpW.value = Math.round(selected.w);
+      inpH.value = Math.round(selected.h);
+      inpScale.value = Number(selected.scale.toFixed(2));
+      inpRot.value = Math.round(selected.angle * 180 / Math.PI);
+
+      if (selected.type === 'image') {
+        document.getElementById('shapeRow').style.display = '';
+        inpShape.value = (selected.shape || 'rectangle');
+      } else {
+        document.getElementById('shapeRow').style.display = 'none';
+      }
+
+      titleSection.hidden = selected.type !== 'title';
+      paletteSection.hidden = selected.type !== 'palette';
+
+      if (selected.type === 'title') {
+        inpTitleText.value = selected.text || '';
+        inpTitleColor.value = toHexColor(selected.color || '#1e1e1e');
+        inpTitleBG.value = toHexColor(selected.bg || '#ece4dc');
+        inpTitleFont.value = selected.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
+      }
+    }
+
+    function toHexColor(v) {
+      if (!v) return '#000000';
+      if (v.startsWith('#')) return v;
+      const m = v.match(/rgb\s*\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)\s*\)/i);
+      if (m) {
+        const r = (+m[1]).toString(16).padStart(2,'0');
+        const g = (+m[2]).toString(16).padStart(2,'0');
+        const b = (+m[3]).toString(16).padStart(2,'0');
+        return `#${r}${g}${b}`;
+      }
+      return '#000000';
+    }
+    function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+
+    function bindCommonInputs(){
+      function commit(fn){ if(!selected) return; pushUndo(); fn(); draw(); }
+      inpX.addEventListener('change', ()=> commit(()=> selected.x = +inpX.value));
+      inpY.addEventListener('change', ()=> commit(()=> selected.y = +inpY.value));
+      inpW.addEventListener('change', ()=> commit(()=> selected.w = Math.max(1, +inpW.value)));
+      inpH.addEventListener('change', ()=> commit(()=> selected.h = Math.max(1, +inpH.value)));
+      inpScale.addEventListener('change', ()=> commit(()=> selected.scale = clamp(+inpScale.value, 0.05, 100)));
+      inpRot.addEventListener('change', ()=> commit(()=> selected.angle = (+inpRot.value) * Math.PI / 180));
+      inpShape.addEventListener('change', ()=> commit(()=> selected.shape = inpShape.value));
+    }
+    function bindTitleInputs(){
+      function commit(fn){ if(!selected || selected.type!=='title') return; pushUndo(); fn(); draw(); }
+      inpTitleText.addEventListener('input', ()=> commit(()=> selected.text = inpTitleText.value));
+      inpTitleColor.addEventListener('change', ()=> commit(()=> selected.color = inpTitleColor.value));
+      inpTitleBG.addEventListener('change', ()=> commit(()=> selected.bg = inpTitleBG.value));
+      inpTitleFont.addEventListener('change', ()=> commit(()=> selected.font = inpTitleFont.value));
+    }
+    bindCommonInputs();
+    bindTitleInputs();
+
+    /* ================= Back to Home Button ================= */
+    document.getElementById('backToHomeBtn').addEventListener('click', () => {
+      if (objects.length > 0) {
+        if (confirm('Are you sure you want to go back to home? Any unsaved changes will be lost.')) {
+          window.location.href = 'homepage.html';
+        }
+      } else {
+        window.location.href = 'homepage.html';
+      }
+    });
+  </script>
+  <style>
+    header {
+      text-align: center;
+      padding: 1rem;
+    }
+    .title {
+      font-size: 2.8rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color:#DE6B48;
+    }
+    :root { 
+        --ui-primary: #3EA38B; 
+        --ui-secondary: #328572; 
+        --panel: #ffffff; 
+        --bg: #FDF6ED; 
+        --bg-end: #FBEDDA; 
+        --border: #F9E4C8; 
+        --border-active: #F5D1A3; 
+        --text-dark: #222;
+        --text-muted: #64748b;
+    }
+    html,body { 
+      margin:0; 
+      background: linear-gradient(180deg, var(--bg) 35%, var(--bg-end) 100%);
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: var(--text-dark); 
+    }
+    .topbar {
+      display:flex; gap:12px; align-items:center; padding:12px 16px; 
+      background:var(--bg); 
+      box-shadow:0 1px 6px rgba(0,0,0,.06); position:sticky; top:0; z-index:10; flex-wrap:wrap;
+      border-bottom: 1px solid #FFE7C9; 
+    }
+    .hint { color:var(--text-muted); font-size:13px; margin-left: auto; } 
     
-    if (response.ok) {
-      const result = await response.json();
-      showSaveSuccessDialog();
-      console.log('Saved:', result);
-    } else {
-      const error = await response.text();
-      alert('Failed to save moodboard: ' + error);
+    .layout { 
+      display:flex; 
+      align-items:flex-start; 
+      gap:12px; 
+      padding:12px; 
     }
-  } catch (err) {
-    console.error('Save error:', err);
-    alert('Failed to save moodboard: ' + err.message);
-  }
-});
-
-/* ================= Inspector Panel Logic ================= */
-const panelTitle = document.getElementById('panelTitle');
-const objTypeEl = document.getElementById('objType');
-const objFilenameEl = document.getElementById('objFilename');
-const commonSection = document.getElementById('commonSection');
-const titleSection = document.getElementById('titleSection');
-const paletteSection = document.getElementById('paletteSection');
-
-const inpX = document.getElementById('inpX');
-const inpY = document.getElementById('inpY');
-const inpW = document.getElementById('inpW');
-const inpH = document.getElementById('inpH');
-const inpScale = document.getElementById('inpScale');
-const inpRot = document.getElementById('inpRot');
-const inpShape = document.getElementById('inpShape');
-
-const inpTitleText = document.getElementById('inpTitleText');
-const inpTitleColor = document.getElementById('inpTitleColor');
-const inpTitleBG = document.getElementById('inpTitleBG');
-const inpTitleFont = document.getElementById('inpTitleFont');
-
-function updateInspectorFields(){
-  if(!selected || inspector.hidden) return;
-  panelTitle.textContent = `Inspector — ${selected.type}`;
-  objTypeEl.textContent = selected.type;
-  objFilenameEl.textContent = selected.filename || '—';
-
-  inpX.value = Math.round(selected.x);
-  inpY.value = Math.round(selected.y);
-  inpW.value = Math.round(selected.w);
-  inpH.value = Math.round(selected.h);
-  inpScale.value = Number(selected.scale.toFixed(2));
-  inpRot.value = Math.round(selected.angle * 180 / Math.PI);
-
-  if (selected.type === 'image') {
-    document.getElementById('shapeRow').style.display = '';
-    inpShape.value = (selected.shape || 'rectangle');
-  } else {
-    document.getElementById('shapeRow').style.display = 'none';
-  }
-
-  titleSection.hidden = selected.type !== 'title';
-  paletteSection.hidden = selected.type !== 'palette';
-
-  if (selected.type === 'title') {
-    inpTitleText.value = selected.text || '';
-    inpTitleColor.value = toHexColor(selected.color || '#1e1e1e');
-    inpTitleBG.value = toHexColor(selected.bg || '#ece4dc');
-    inpTitleFont.value = selected.font || `"MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif`;
-  }
-}
-
-function toHexColor(v) {
-  if (!v) return '#000000';
-  if (v.startsWith('#')) return v;
-  const m = v.match(/rgb\s*\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)\s*\)/i);
-  if (m) {
-    const r = (+m[1]).toString(16).padStart(2,'0');
-    const g = (+m[2]).toString(16).padStart(2,'0');
-    const b = (+m[3]).toString(16).padStart(2,'0');
-    return `#${r}${g}${b}`;
-  }
-  return '#000000';
-}
-function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
-
-function bindCommonInputs(){
-  function commit(fn){ if(!selected) return; pushUndo(); fn(); draw(); }
-  inpX.addEventListener('change', ()=> commit(()=> selected.x = +inpX.value));
-  inpY.addEventListener('change', ()=> commit(()=> selected.y = +inpY.value));
-  inpW.addEventListener('change', ()=> commit(()=> selected.w = Math.max(1, +inpW.value)));
-  inpH.addEventListener('change', ()=> commit(()=> selected.h = Math.max(1, +inpH.value)));
-  inpScale.addEventListener('change', ()=> commit(()=> selected.scale = clamp(+inpScale.value, 0.05, 100)));
-  inpRot.addEventListener('change', ()=> commit(()=> selected.angle = (+inpRot.value) * Math.PI / 180));
-  inpShape.addEventListener('change', ()=> commit(()=> selected.shape = inpShape.value));
-}
-function bindTitleInputs(){
-  function commit(fn){ if(!selected || selected.type!=='title') return; pushUndo(); fn(); draw(); }
-  inpTitleText.addEventListener('input', ()=> commit(()=> selected.text = inpTitleText.value));
-  inpTitleColor.addEventListener('change', ()=> commit(()=> selected.color = inpTitleColor.value));
-  inpTitleBG.addEventListener('change', ()=> commit(()=> selected.bg = inpTitleBG.value));
-  inpTitleFont.addEventListener('change', ()=> commit(()=> selected.font = inpTitleFont.value));
-}
-bindCommonInputs();
-bindTitleInputs();
-
-/* ================= Back to Home Button ================= */
-document.getElementById('backToHomeBtn').addEventListener('click', () => {
-  if (objects.length > 0) {
-    if (confirm('Are you sure you want to go back to home? Any unsaved changes will be lost.')) {
-      window.location.href = 'homepage.html';
+    .canvasWrap {
+      flex: 1 1 auto; 
+      display:flex; 
+      justify-content:center; 
+      align-items:center;
+      overflow:hidden; /* Prevents scrollbars on the wrap, relying on canvas resize */
+      border-radius: 8px;
+      padding: 8px; /* Padding for canvasWrap */
+      overscroll-behavior: contain;
+      touch-action: none;
+      min-width: 0; 
+      max-width: 100%;
+      position: relative; /* Needed for title editor positioning */
     }
-  } else {
-    window.location.href = 'homepage.html';
-  }
-});
-</script>
-</body>
+    
+    /* NEW: Canvas styles to fill 100% of its parent's content box */
+    canvas { 
+        width: 100%; 
+        height: 100%;
+        background:#fff; 
+        border:1px solid var(--border); 
+        display:block; 
+    }
+
+    .panel {
+      width: 320px; flex: 0 0 320px; background: var(--panel);
+      box-shadow: 0 2px 16px rgba(100,116,139,0.08);
+      position:sticky; top:12px; align-self:flex-start; max-height: calc(100vh - 24px); overflow:auto;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+    .panel header {
+      padding:10px 12px; border-bottom:1px solid #eee; font-weight:600;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .panel .close {
+      border:none; background:transparent; font-size:18px; line-height:1; cursor:pointer; color:#666;
+    }
+    .panel section { padding:10px 12px; border-bottom:1px solid #eee; }
+    .panel .row { display:flex; align-items:center; gap:8px; margin:8px 0; }
+    .panel label { width: 110px; font-size:13px; color:#444; }
+    .panel input[type="text"],
+    .panel input[type="number"],
+    .panel select {
+      flex:1 1 auto; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-size:14px;
+    }
+    .panel input[type="text"]:focus,
+    .panel input[type="number"]:focus,
+    .panel select:focus {
+        outline: none;
+        border: 1px solid var(--border-active);
+    }
+    .panel input[type="color"] { width: 48px; height: 32px; padding:0; border:1px solid var(--border); border-radius:6px; }
+    .panel .muted { color:#777; font-size:12px; }
+    
+    /* --- ACTION FOOTER (UNCHANGED) --- */
+    .action-footer {
+        display: flex;
+        justify-content: center; 
+        gap: 12px;
+        padding: 18px 24px; 
+        margin-top: 24px; 
+    }
+    
+    /* --- CUSTOM BUTTON STYLES (UNCHANGED) --- */
+    button { 
+        border: none;
+        border-radius: 0.7rem; 
+        padding: 0.7rem 1.4rem;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s, transform 0.1s;
+    }
+    button.primary-btn {
+        background: linear-gradient(150deg, var(--ui-primary) 35%, var(--ui-secondary) 100%);
+        color: #fff;
+    }
+    button.primary-btn:hover {
+        background: linear-gradient(150deg, var(--ui-secondary) 35%, #276859 100%);
+    }
+    button.secondary-btn, .file-input-label {
+        background-color: #FDF6ED;
+        border: 1px solid #FDF6ED;
+        color: #3EA38B;
+        padding: 0.7rem 1.4rem;
+        font-size: 1rem;
+        font-weight: 400;
+        border-radius: 0.7rem; 
+    }
+    button.secondary-btn:hover, .file-input-label:hover {
+        border: 1px solid #FFE7C9;
+        background-color: #f5e6d3;
+    }
+    .back-btn {
+      background: #DE6B48;
+      color: #fff;
+      border: none;
+      border-radius: 0.7rem;
+      padding: 0.7rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .back-btn:hover {
+      background: #C05D3C;
+    }
+    
+    .file-input-label {
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+    .file-input-label input[type="file"] {
+        position: absolute;
+        top: 0;
+        right: 0;
+        margin: 0;
+        padding: 0;
+        font-size: 20px;
+        cursor: inherit;
+        opacity: 0;
+    }
+    
+    button:active { transform: translateY(1px); }
+    
+    #titleEditor {
+      position:absolute; z-index:20; display:none; border:1px solid #3EA38B; 
+      box-shadow:0 2px 10px rgba(0,0,0,.12); padding:6px 10px; background:#fff; border-radius:6px;
+      font: 24px "MoodboardTitle", "Bradley Hand", "Segoe UI", Arial, sans-serif; outline:none;
+    }
+    
+    @font-face {
+      font-family: 'MoodboardTitle';
+      src: url('../fonts/BradleyHandITC.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+  </style>
 </html>
